@@ -22,7 +22,7 @@ message(
 )
 
 if (DEFINED VCPKG_ROOT)
-	set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+	set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
 	set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "")
 else ()
 	message(
