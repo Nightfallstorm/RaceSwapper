@@ -1,7 +1,12 @@
+#include "Database.h"
+
 void MessageInterface(SKSE::MessagingInterface::Message* msg) {
 	switch (msg->type) {
 	case SKSE::MessagingInterface::kDataLoaded:
 		// Race Swap here
+		auto database = DataBase::GetSingleton();
+		// Stuff here
+		database->Dealloc();
 		break;
 	}
 }
