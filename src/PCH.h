@@ -15,9 +15,21 @@
 #pragma warning(pop)
 
 namespace logger = SKSE::log;
-namespace string = SKSE::stl::string;
 
 using namespace std::literals;
+
+namespace constants
+{
+	inline RE::FormID Keyword_ActorTypeNPC = 0x13794;
+	inline RE::FormID Keyword_IsBeastRace = 0xD61D1;
+
+	// debug
+	inline RE::FormID Maiq = 0x954BF;
+	inline RE::FormID Nazeem = 0x13BBF;
+	inline RE::FormID MQ101Alduin = 0x32B94;
+	inline RE::FormID DefaultRace = 0x19;
+	inline RE::FormID DebugNPCToTest = 0x954BF;
+}
 
 namespace stl
 {

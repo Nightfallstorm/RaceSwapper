@@ -1,8 +1,11 @@
 set(headers ${headers}
 	src/PCH.h
-	src/Database.h
 	src/Hooks.h
-	src/NPCSwap.h
+	src/swap/NPCSwap.h
 	src/Papyrus.h
-	src/Settings.h
+	src/RaceUtils.h
+	src/swap/RaceSwap.h
+	src/swap/NPCAppearance.h
+	src/configuration/Configuration.h
+	src/swap/Utils.h
 )

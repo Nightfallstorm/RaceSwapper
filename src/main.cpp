@@ -1,12 +1,44 @@
-#include "Database.h"
+#include "configuration/Configuration.h"
+#include "swap/NPCAppearance.h"
+#include "Hooks.h"
+
+// Filter for only NPCs this swapping can work on
+bool IsNPCValid(RE::TESNPC* a_npc)
+{
+	return !a_npc->IsPlayer() &&
+	       !a_npc->IsPlayerRef() &&
+	       !a_npc->IsPreset() &&
+	       !a_npc->IsDynamicForm() &&
+
+	       a_npc->race &&
+	       a_npc->race->HasKeywordID(constants::Keyword_ActorTypeNPC);
+}
 
 void MessageInterface(SKSE::MessagingInterface::Message* msg) {
 	switch (msg->type) {
 	case SKSE::MessagingInterface::kDataLoaded:
-		// Race Swap here
-		auto database = DataBase::GetSingleton();
-		// Stuff here
-		database->Dealloc();
+		ConfigurationDatabase::GetSingleton()->Initialize();
+
+		logger::info("Starting appearance swaps");
+
+		auto [map, lock] = RE::TESForm::GetAllForms();
+		lock.get().LockForWrite();
+
+		for (auto& [formID, form] : *map) {
+			if (form->As<RE::TESNPC>() && IsNPCValid(form->As<RE::TESNPC>())) {
+				logger::info("Start Swapping appearance of {:x}", formID);
+				auto NPCAppearance = NPCAppearance::GetOrCreateNPCAppearance(form->As<RE::TESNPC>());
+				if (NPCAppearance) {
+					logger::info("Swapping appearance of {:x}", formID);
+					NPCAppearance->ApplyNewAppearance(false);
+				}
+			}
+		}
+
+		lock.get().UnlockForWrite();
+
+		hook::InstallHooks();
+		logger::info("Appearance Swaps complete!");
 		break;
 	}
 }
@@ -57,6 +89,8 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 {
 	InitializeLog();
 	SKSE::Init(a_skse);
+	auto messaging = SKSE::GetMessagingInterface();
+	messaging->RegisterListener(MessageInterface);
 	logger::info("Loaded Plugin");
 	return true;
 }

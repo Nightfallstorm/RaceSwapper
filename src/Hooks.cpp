@@ -1,18 +1,20 @@
 #pragma once
 #include "Hooks.h"
-#include "NPCSwap.h"
+#include "swap/NPCAppearance.h"
 
 struct GetTESModelHook
 {
 	static RE::TESModel* GetTESModel(RE::TESNPC* a_npc)
 	{
-		if (NPCSwapper::GetNPCSwapper(a_npc->formID)) {
-			auto NPCSwapper = NPCSwapper::GetNPCSwapper(a_npc->formID);
-			if (NPCSwapper->currentNPCAppearanceID != a_npc->formID) {
-				return NPCSwapper->newNPCData->skeletonModel;
-			}
+		NPCAppearance* appearance = NPCAppearance::GetNPCAppearance(a_npc);
+		if (appearance != nullptr && appearance->isNPCSwapped) {
+			return appearance->alteredNPCData.skeletonModel;
 		}
 
+		return OriginalModel(a_npc);
+	}
+
+	static RE::TESModel* OriginalModel(RE::TESNPC* a_npc) {
 		// Original logic
 		if (!a_npc->race->skeletonModels[a_npc->GetSex()].model.empty()) {
 			return &a_npc->race->skeletonModels[a_npc->GetSex()];
@@ -51,11 +53,9 @@ struct GetFaceRelatedDataHook
 {
 	static RE::TESRace::FaceRelatedData* GetFaceData(RE::TESNPC* a_npc)
 	{
-		if (NPCSwapper::GetNPCSwapper(a_npc->formID)) {
-			auto NPCSwapper = NPCSwapper::GetNPCSwapper(a_npc->formID);
-			if (NPCSwapper->currentNPCAppearanceID != a_npc->formID) {
-				return NPCSwapper->newNPCData->faceRelatedData;
-			}
+		NPCAppearance* appearance = NPCAppearance::GetNPCAppearance(a_npc);
+		if (appearance != nullptr && appearance->isNPCSwapped) {
+			return appearance->alteredNPCData.faceRelatedData;
 		}
 
 		// Original logic
@@ -90,12 +90,11 @@ struct GetFaceRelatedDataHook2
 	{
 		// Swap faceRelatedData for the duration of this function call
 		auto oldFaceRelatedData = a_npc->race->faceRelatedData[a_npc->GetSex()];
-		if (NPCSwapper::GetNPCSwapper(a_npc->formID)) {
-			auto NPCSwapper = NPCSwapper::GetNPCSwapper(a_npc->formID);
-			if (NPCSwapper->currentNPCAppearanceID != a_npc->formID) {
-				auto NPC = NPCSwapper->newNPCData->baseNPC;
-				a_npc->race->faceRelatedData[a_npc->GetSex()] = NPC->race->faceRelatedData[NPC->GetSex()];
-			}
+
+		NPCAppearance* appearance = NPCAppearance::GetNPCAppearance(a_npc);
+		if (appearance != nullptr && appearance->isNPCSwapped) {
+			auto faceRelatedData = appearance->alteredNPCData.faceRelatedData;
+			a_npc->race->faceRelatedData[a_npc->GetSex()] = faceRelatedData;
 		}
 
 		auto result = func(a_unk, a_unk1, a_unk2, a_npc);
@@ -127,11 +126,11 @@ struct LoadTESObjectARMOHook
 		// a_npc WAS a_race, but our asm kept it as RE::TESNPC for our use case
 		auto NPC = reinterpret_cast<RE::TESNPC*>(a_npc);
 		auto race = NPC->race;
-		if (NPCSwapper::GetNPCSwapper(NPC->formID)) {
-			auto NPCSwapper = NPCSwapper::GetNPCSwapper(NPC->formID);
-			if (NPCSwapper->currentNPCAppearanceID != NPC->formID) {
-				race = NPCSwapper->newNPCData->race;
-			}
+
+		NPCAppearance* appearance = NPCAppearance::GetNPCAppearance(NPC);
+		if (appearance != nullptr && appearance->isNPCSwapped) {
+			// Swap to new appearance's race
+			race = appearance->alteredNPCData.race;
 		}
 		return func(a_unk, race, a_unk1, isFemale);
 	}
@@ -179,11 +178,10 @@ struct LoadTESObjectARMOHook2
 		// a_npc WAS a_race, but our asm kept it as RE::TESNPC for our use case
 		auto NPC = reinterpret_cast<RE::TESNPC*>(a_npc);
 		auto race = NPC->race;
-		if (NPCSwapper::GetNPCSwapper(NPC->formID)) {
-			auto NPCSwapper = NPCSwapper::GetNPCSwapper(NPC->formID);
-			if (NPCSwapper->currentNPCAppearanceID != NPC->formID) {
-				race = NPCSwapper->newNPCData->race;
-			}
+
+		NPCAppearance* appearance = NPCAppearance::GetNPCAppearance(NPC);
+		if (appearance != nullptr && appearance->isNPCSwapped) {
+			race = appearance->alteredNPCData.race;
 		}
 
 		return func(a_unk, race, a_unk1, isFemale);
@@ -232,32 +230,31 @@ struct CopyFromTemplate
 		auto NPC = skyrim_cast<RE::TESNPC*, RE::TESActorBaseData>(a_self);
 		auto templateNPC = skyrim_cast<RE::TESNPC*, RE::TESActorBase>(a_template);
 
-		if (!NPC || !templateNPC || !templateNPC->GetRace()->HasKeywordID(constants::ActorTypeNPC)) {
-			return;
+		if (!NPC || !templateNPC) {
+			return func(a_self, a_template);
 		}
 
-		if (NPCSwapper::GetNPCSwapper(NPC->formID)) {
-			// Data already present, since the base actor is being copied from a new template
-			// we will just remove the original swapper data to treat this as a new base actor entirely
-			NPCSwapper::RemoveNPCSwapper(NPC->formID);
-		}
+
+		// Remove any existing appearance data
+		// Since this NPC is being copied from a template, we are treating this NPC as brand new
+		NPCAppearance::EraseNPCAppearance(NPC);
+		
 
 		func(a_self, a_template);
-		ProcessBaseNPC(NPC, templateNPC);
+
+		// Process base NPC now that it grabbed the new template data
+		ProcessBaseNPC(NPC);
 		return;
 
 			
 	}
 
-	static void ProcessBaseNPC(RE::TESNPC* NPC, RE::TESNPC* templateNPC) {
+	static void ProcessBaseNPC(RE::TESNPC* NPC) {
 		logger::info("Handling base NPC: {} {:x}", NPC->GetFullName(), NPC->formID);
-		//Prank::GetBeastPrank()->ProcessTemplateNPC(NPC); // TODO:
-	}
-
-	static void ProcessTemplateNPC(RE::TESNPC* NPC, RE::TESNPC* templateNPC)
-	{
-		logger::info("Handling template NPC: {} {:x}", templateNPC->GetFullName(), templateNPC->formID);
-		//Prank::GetBeastPrank()->ProcessTemplateNPC(templateNPC); // TODO:
+		auto NPCAppearance = NPCAppearance::GetOrCreateNPCAppearance(NPC);
+		if (NPCAppearance) {
+			NPCAppearance->ApplyNewAppearance(false); // TODO: Check this. May require true here.
+		}
 	}
 
 	static inline REL::Relocation<decltype(thunk)> func;
@@ -276,7 +273,7 @@ struct CopyFromTemplate
 
 struct CopyNPC
 {
-	// Maintain NPCSwapper data when copying data between NPCs
+	// Maintain Swapper data when copying data between NPCs
 	static void thunk(RE::TESNPC* a_self, RE::TESForm* a_other)
 	{
 		if (!a_other->As<RE::TESNPC>()) {
@@ -285,31 +282,33 @@ struct CopyNPC
 		}
 
 		bool otherNPCSwapped = false;
-		NPCSwapper* otherNPCSwapper = NPCSwapper::GetNPCSwapper(a_other->formID);
-		if (otherNPCSwapper) {
-			// NPCSwapper data existed for other NPC, revert to original appearance for the copy
-			if (otherNPCSwapper->currentNPCAppearanceID != a_other->formID) {
-				otherNPCSwapper->Revert();
+		NPCAppearance* otherNPCAppearance = NPCAppearance::GetNPCAppearance(a_other->As<RE::TESNPC>());
+		if (otherNPCAppearance) {
+			// Swapper data existed for other NPC, revert to original appearance for the copy
+			if (otherNPCAppearance->isNPCSwapped) {
+				otherNPCAppearance->RevertNewAppearance(false);
 				otherNPCSwapped = true;
 			}
 		}
 		
 		func(a_self, a_other);
 
-		// Erase NPCSwapper data, and set it up to match other NPCSwapper data if it exists
-		NPCSwapper::RemoveNPCSwapper(a_self->formID);
-		if (otherNPCSwapper) {
-			NPCSwapper::GetOrPutNPCSwapper(a_self);
-			if (otherNPCSwapped) {
-				NPCSwapper::GetOrPutNPCSwapper(a_self)->SetupNewNPCSwap(otherNPCSwapper->newNPCData);
-				NPCSwapper::GetOrPutNPCSwapper(a_self)->Apply();
+		// Erase Swapper data, and set it up to match other Swapper data if it exists
+		NPCAppearance::EraseNPCAppearance(a_self);
+		if (otherNPCAppearance != nullptr) {
+			// This should get the exact same appearance as the old NPC
+			// No user would realistically specify a template/non-unique NPC for an entry, 
+			// so the new appearance data should be the same as the old one 
+			NPCAppearance::GetOrCreateNPCAppearance(a_self); 
+			if (otherNPCSwapped && NPCAppearance::GetNPCAppearance(a_self)) {
+				NPCAppearance::GetNPCAppearance(a_self)->ApplyNewAppearance(false);
 			}
 		}
 
 		// Reapply swap to other NPC if necessary
 
-		if (otherNPCSwapper && otherNPCSwapped) {
-			otherNPCSwapper->Apply();
+		if (otherNPCAppearance && otherNPCSwapped) {
+			otherNPCAppearance->ApplyNewAppearance(false);
 		}	
 	}
 
@@ -328,10 +327,10 @@ struct CopyNPC
 
 struct DtorNPC
 {
-	// Remove NPCSwapper data when NPC being cleared
+	// Remove Swapper data when NPC being cleared
 	static void thunk(RE::TESNPC* a_self, std::byte unk)
 	{
-		NPCSwapper::RemoveNPCSwapper(a_self->formID);
+		NPCAppearance::EraseNPCAppearance(a_self);
 		func(a_self, unk);
 	}
 
@@ -353,18 +352,21 @@ struct SaveNPC
 	// Revert any swaps before saving to prevent presistence
 	static void thunk(RE::TESNPC* a_self, std::uint64_t unkSaveStruct)
 	{
-		auto swapper = NPCSwapper::GetNPCSwapper(a_self->formID);
-		bool appliedSwap = false;
-		if (swapper && swapper->currentNPCAppearanceID != a_self->formID) {
-			appliedSwap = true;
+		auto appearance = NPCAppearance::GetNPCAppearance(a_self);
+		if (!appearance) {
+			// No appearance data means no need to revert anything
+			return;
+		}
+		bool appliedSwap = appearance->isNPCSwapped;
+		if (appearance && appliedSwap) {
 			logger::info("Reverting NPC for save: {}", a_self->formID);
-			swapper->Revert();
+			appearance->RevertNewAppearance(false);
 			
 		}
 		func(a_self, unkSaveStruct);
 
-		if (swapper && appliedSwap) {
-			swapper->Apply();
+		if (appearance && appliedSwap) {
+			appearance->ApplyNewAppearance(false);
 		}
 	}
 
@@ -385,8 +387,7 @@ class HandleFormDelete : public RE::BSTEventSink<RE::TESFormDeleteEvent>
 {
 	RE::BSEventNotifyControl ProcessEvent(const RE::TESFormDeleteEvent* a_event, RE::BSTEventSource<RE::TESFormDeleteEvent>* a_eventSource) override
 	{
-		NPCSwapper::RemoveNPCSwapper(a_event->formID);
-		//Prank::GetCurrentPrank()->ProcessFormDelete(a_event->formID);
+		NPCAppearance::EraseNPCAppearance(a_event->formID);
 		return RE::BSEventNotifyControl::kContinue;
 	}
 };
