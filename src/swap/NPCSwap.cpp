@@ -4,7 +4,7 @@
 #include "Utils.h"
 
 void NPCSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESNPC* a_otherNPC) {
-	if (!a_otherNPC) {
+	if (!a_otherNPC || a_data->baseNPC == a_otherNPC) {
 		return;
 	}
 
@@ -17,6 +17,7 @@ void NPCSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESNPC* a_otherNPC) 
 	}
 
 
+	a_data->baseNPC = a_otherNPC;
 	a_data->isBeastRace = a_otherNPC->HasKeywordID(constants::Keyword_IsBeastRace) ||
 	                      a_otherNPC->race->HasKeywordID(constants::Keyword_IsBeastRace);
 
@@ -30,6 +31,9 @@ void NPCSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESNPC* a_otherNPC) 
 	a_data->race = a_otherNPC->race;
 	a_data->skeletonModel = &a_otherNPC->race->skeletonModels[a_otherNPC->GetSex()];
 	a_data->faceRelatedData = a_otherNPC->race->faceRelatedData[a_otherNPC->GetSex()];
+	a_data->bodyPartData = a_otherNPC->race->bodyPartData;
+	a_data->bodyTextureModel = &a_otherNPC->race->bodyTextureModels[a_otherNPC->GetSex()];
+	a_data->behaviorGraph = &a_otherNPC->race->behaviorGraphs[a_otherNPC->GetSex()];
 
 	if (a_data->tintLayers) {
 		a_data->tintLayers->clear();
@@ -39,13 +43,14 @@ void NPCSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESNPC* a_otherNPC) 
 
 	a_data->faceNPC = a_otherNPC->faceNPC ? a_otherNPC->faceNPC : a_otherNPC;
 
-	a_data->headRelatedData = CopyHeadRelatedData(a_otherNPC->headRelatedData);
+	a_data->headRelatedData = CopyHeadRelatedData(a_data->faceNPC->headRelatedData);
 
 	a_data->numHeadParts = a_otherNPC->numHeadParts;
-	a_data->headParts = CopyHeadParts(a_otherNPC->headParts, a_otherNPC->numHeadParts);
+	a_data->headParts = CopyHeadParts(a_data->faceNPC->headParts, a_data->faceNPC->numHeadParts);
 
 	// TODO: Check for default face struct here?
-	a_data->faceData = DeepCopyFaceData(a_otherNPC->faceData);
+	
+	a_data->faceData = DeepCopyFaceData(a_data->faceNPC->faceData);
 
 	if (otherNPCAppearance && otherNPCSwapped) {
 		otherNPCSwapped = true;

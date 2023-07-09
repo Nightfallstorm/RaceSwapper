@@ -4,27 +4,47 @@
 class NPCAppearance
 {
 public:
+	using pad = std::byte;
 	// Appearance information of an NPC, used to swap and revert
+	// Some variables are specifically padded so we can call TESNPC functions
+	// with this data, such as "TESNPC::ChangeHeadPart", and treat this data
+	// as the TESNPC
 	struct NPCData
 	{
-		RE::TESNPC* baseNPC;
-		RE::TESNPC* faceNPC;
-		RE::TESRace* race;
-		float height;
-		float weight;
-		RE::TESModel* skeletonModel;
-		bool isFemale;
-		bool isBeastRace;
-		RE::Color bodyTintColor;
-		RE::BSTArray<RE::TESNPC::Layer*>* tintLayers;
-		RE::TESObjectARMO* skin;
-		RE::TESObjectARMO* farSkin;
-		RE::TESNPC::FaceData* faceData;
-		RE::TESRace::FaceRelatedData* faceRelatedData;
-		RE::TESNPC::HeadRelatedData* headRelatedData;
-		RE::BGSHeadPart** headParts;
-		std::uint8_t numHeadParts;
+		RE::TESNPC* baseNPC;          // 00
+		RE::TESModel* skeletonModel;  // 08
+		bool isFemale;                // 09
+		////////////////// RACE DATA /////////////////////////////
+		bool isBeastRace;                               // 0A
+		RE::TESObjectARMO* skin;                        // 10
+		RE::TESRace::FaceRelatedData* faceRelatedData;  // 18
+		RE::BGSBodyPartData* bodyPartData;              // 20
+		RE::BGSTextureModel* bodyTextureModel;          // 28
+		RE::BGSBehaviorGraphModel* behaviorGraph;       // 30
+		////////////////////////////////////////////////////
+		pad pad18[0x188];                              // 38
+		RE::TESNPC::HeadRelatedData* headRelatedData;  // 1C8
+		pad pad1D0[0x18];                              // 1D0
+		RE::TESRace* race;                             // 1E8 - originalRace
+		RE::TESNPC* faceNPC;                           // 1F0
+		float height;                                  // 1F8
+		float weight;                                  // 1FC
+		pad pad200[0x10];                              // 200
+		RE::TESObjectARMO* farSkin;                    // 210
+		pad pad218[0x20];                              // 218
+		RE::BGSHeadPart** headParts;                   // 238
+		std::uint8_t numHeadParts;                     // 240
+		pad pad241[0x5];                               // 241
+		RE::Color bodyTintColor;                       // 246
+		pad pad247[0xE];                               // 24A
+		RE::TESNPC::FaceData* faceData;                // 258
+		RE::BSTArray<RE::TESNPC::Layer*>* tintLayers;  // 260
 	};
+	static_assert(sizeof(NPCData) == 0x268);
+	static_assert(offsetof(NPCData, faceData) == 0x258);
+	static_assert(offsetof(NPCData, tintLayers) == 0x260);
+	static_assert(offsetof(NPCData, headParts) == 0x238);
+	static_assert(offsetof(NPCData, numHeadParts) == 0x240);
 
 	NPCData originalNPCData = { 0 };
 	NPCData alteredNPCData = { 0 };
@@ -57,7 +77,7 @@ private:
 	void CopyFaceData(NPCData* a_data);
 
 	void ApplyAppearance(NPCData* a_data);
-	
+
 	void dtor();
 
 	static inline std::map<RE::FormID, NPCAppearance*> appearanceMap;

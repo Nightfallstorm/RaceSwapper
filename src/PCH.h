@@ -26,9 +26,17 @@ namespace constants
 	// debug
 	inline RE::FormID Maiq = 0x954BF;
 	inline RE::FormID Nazeem = 0x13BBF;
+	inline RE::FormID Urog = 0x1B078;
 	inline RE::FormID MQ101Alduin = 0x32B94;
 	inline RE::FormID DefaultRace = 0x19;
 	inline RE::FormID DebugNPCToTest = 0x954BF;
+	inline RE::FormID KhajiitRace = 0x13745;
+	inline RE::FormID ArgonianRace = 0x13740;
+	inline RE::FormID RedguardRace = 0x13748;
+	inline RE::FormID NordRace = 0x13746;
+	inline RE::FormID OrcRace = 0x13747;
+	inline RE::FormID CowRace = 0x4E785;
+	inline RE::FormID DragonRace = 0x12E82;
 }
 
 namespace stl

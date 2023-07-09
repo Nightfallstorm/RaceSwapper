@@ -73,7 +73,7 @@ void NPCAppearance::ApplyAppearance(NPCData* a_data)
 void NPCAppearance::InitializeNPCData(NPCData* a_data)
 {
 	a_data->baseNPC = npc;
-	a_data->faceNPC = npc->faceNPC;
+	a_data->faceNPC = npc->faceNPC ? npc->faceNPC : npc;
 	a_data->race = npc->race;
 
 	a_data->skin = npc->skin ? npc->skin : npc->race->skin;
@@ -92,6 +92,11 @@ void NPCAppearance::InitializeNPCData(NPCData* a_data)
 	a_data->isBeastRace = npc->HasKeywordID(constants::Keyword_IsBeastRace) ||
 	                         npc->race->HasKeywordID(constants::Keyword_IsBeastRace);
 
+	a_data->bodyPartData = npc->race->bodyPartData;
+
+	a_data->bodyTextureModel = &npc->race->bodyTextureModels[npc->GetSex()];
+	a_data->behaviorGraph = &npc->race->behaviorGraphs[npc->GetSex()];
+
 }
 
 
@@ -102,15 +107,15 @@ void NPCAppearance::CopyFaceData(NPCData* a_data)
 	if (a_data->headRelatedData) {
 		memoryManager->Deallocate(a_data->headRelatedData, 0);
 	}
-	a_data->headRelatedData = CopyHeadRelatedData(npc->headRelatedData);
+	a_data->headRelatedData = CopyHeadRelatedData(a_data->faceNPC->headRelatedData);
 
-	a_data->numHeadParts = npc->numHeadParts;
-	a_data->headParts = CopyHeadParts(npc->headParts, a_data->numHeadParts);
+	a_data->numHeadParts = a_data->faceNPC->numHeadParts;
+	a_data->headParts = CopyHeadParts(a_data->faceNPC->headParts, a_data->faceNPC->numHeadParts);
 
 	// TODO: Check for default face struct here?
-	a_data->faceData = DeepCopyFaceData(npc->faceData);
+	a_data->faceData = DeepCopyFaceData(a_data->faceNPC->faceData);
 
-	a_data->faceRelatedData = npc->race->faceRelatedData[npc->GetSex()];
+	a_data->faceRelatedData = a_data->faceNPC->race->faceRelatedData[npc->GetSex()];
 }
 
 void NPCAppearance::SetupNewAppearance() {

@@ -63,9 +63,9 @@ namespace util
 		return item_map.find(elem) != item_map.end();
 	}
 
-	using HDPTData = std::pair<std::uint32_t, std::vector<std::string>>;
+	using HDPTData = std::tuple<std::uint32_t, std::uint32_t, std::uint32_t>;
 		
-	using _likelihood_t = uint8_t;
+	using _likelihood_t = uint16_t;
 
 	size_t hash1(std::string str);
 
@@ -77,7 +77,7 @@ namespace util
 
 	_likelihood_t _match(HDPTData dst, HDPTData src);
 
-	std::vector<RE::BGSHeadPart*> MatchHDPTData(HDPTData dst, std::vector<RE::BGSHeadPart*> src_hdpts, std::vector<HDPTData> src_data);
+	std::vector<RE::BGSHeadPart*> MatchHDPTData(HDPTData dst, std::vector<RE::BGSHeadPart*> src_hdpts, std::vector<HDPTData*> src_data);
 
 	/* 
 	Class for random number generation.
@@ -131,7 +131,7 @@ namespace util
 		//@brief Get the next random number generated from the previous random number.
 		size_t GetNext(){
 			_seed_locked = true;
-			srand(_random_num);
+			srand((int) _random_num);
 			_random_num = rand();
 			srand(clock());
 			return _random_num;

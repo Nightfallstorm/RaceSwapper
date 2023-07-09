@@ -1,31 +1,22 @@
 #pragma once
 #include "PCH.h"
-#include "RaceUtils.h"
+#include "RaceSwapUtils.h"
 #include "NPCAppearance.h"
 
 class RaceSwap
 {
 public:
-	enum ReturnFlag
-	{
-		Successful = 0,
-		Failed = 1,
-		Skipped = 2
-	};
+	using HeadPartType = RE::BGSHeadPart::HeadPartType;
 
-	static ReturnFlag SwapNPC(RE::TESNPC* a_npc, uint32_t a_flag);
 	static void applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRace);
 
 private:
+	static bool DoHeadMorphs(util::RandomGen<RE::TESForm> rand_gen, NPCAppearance::NPCData* a_data);
 
-	static bool DoHairstyle(util::RandomGen<RE::TESForm> rand_gen, RE::TESNPC* a_npc, uint32_t a_flag);
+	static bool DoTints(util::RandomGen<RE::TESForm> rand_gen, NPCAppearance::NPCData* a_data, RE::TESRace* a_originalRace);
 
-	static bool DoHeadMorphs(util::RandomGen<RE::TESForm> rand_gen, RE::TESNPC* a_npc, uint32_t a_flag);
+	static RE::BGSHeadPart* SwitchHeadPart(util::RandomGen<RE::TESForm> rand_gen, NPCAppearance::NPCData* a_data, RE::BGSHeadPart* a_part);
 
-	static bool DoEyes(util::RandomGen<RE::TESForm> rand_gen, RE::TESNPC* a_npc, uint32_t a_flag);
-
-	static bool DoScars(util::RandomGen<RE::TESForm> rand_gen, RE::TESNPC* a_npc, uint32_t a_flag);
-
-	static bool DoTints(util::RandomGen<RE::TESForm> rand_gen, RE::TESNPC* a_npc, uint32_t a_flag);
+	static std::unordered_map<RE::BGSHeadPart*, util::HDPTData*> _hdptd_cache;
 };
 

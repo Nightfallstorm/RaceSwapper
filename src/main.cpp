@@ -1,12 +1,19 @@
 #include "configuration/Configuration.h"
 #include "swap/NPCAppearance.h"
 #include "Hooks.h"
+#include "swap/RaceSwapDatabase.h"
 
+struct CEHelper
+{
+	// TODO: Remove when done debugging
+	std::uint64_t CESignature = 0x123456789ABCDEF;
+	RE::TESRace* KhajiitRace = nullptr;
+	RE::TESRace* CowRace = nullptr;
+} cehelper;
 // Filter for only NPCs this swapping can work on
 bool IsNPCValid(RE::TESNPC* a_npc)
 {
 	return !a_npc->IsPlayer() &&
-	       !a_npc->IsPlayerRef() &&
 	       !a_npc->IsPreset() &&
 	       !a_npc->IsDynamicForm() &&
 
@@ -20,7 +27,8 @@ void MessageInterface(SKSE::MessagingInterface::Message* msg) {
 		ConfigurationDatabase::GetSingleton()->Initialize();
 
 		logger::info("Starting appearance swaps");
-
+		cehelper.KhajiitRace = RE::TESForm::LookupByID(constants::KhajiitRace)->As<RE::TESRace>();
+		cehelper.CowRace = RE::TESForm::LookupByID(constants::CowRace)->As<RE::TESRace>();
 		auto [map, lock] = RE::TESForm::GetAllForms();
 		lock.get().LockForWrite();
 

@@ -49,6 +49,80 @@ struct GetTESModelHook
 	}
 };
 
+struct GetBodyPartDataHook
+{
+	static RE::BGSBodyPartData* thunk(RE::TESRace* a_actor)
+	{
+		// a_npc WAS the race, but we kept it as Actor for our purposes >:)
+		auto actor = reinterpret_cast<RE::Actor*>(a_actor);
+		
+		auto appearance = NPCAppearance::GetNPCAppearance(actor->GetActorBase());
+		if (appearance && appearance->isNPCSwapped) {
+			return appearance->alteredNPCData.bodyPartData;
+		}
+
+		if (!actor->GetActorRuntimeData().race) {
+			return nullptr;
+		}
+
+		return func(actor->GetActorRuntimeData().race);
+	}
+
+	static inline REL::Relocation<decltype(thunk)> func;
+
+	// Install our hook at the specified address
+	static inline void Install()
+	{
+		// TODO: AE/VR
+		REL::Relocation<std::uintptr_t> load3DTarget{ RELOCATION_ID(36198, 0), REL::VariantOffset(0x5A, 0x0, 0x0) };
+		
+		// Remove call to replace RCX (actor) with actor's race. This lets our hook have access to the actor data
+		REL::safe_fill(load3DTarget.address() - 0x11, REL::NOP, 0x7);
+		stl::write_thunk_call<GetBodyPartDataHook>(load3DTarget.address());
+
+		// TODO: May need to hook other areas?
+		logger::info("GetBodyPartData hooked at address {:x}", load3DTarget.address());
+		logger::info("GetBodyPartData hooked at offset {:x}", load3DTarget.offset());
+	}
+};
+
+struct GetBaseMoveTypes
+{
+	static RE::BGSBodyPartData* thunk(RE::TESRace* a_actor)
+	{
+		// a_npc WAS the race, but we kept it as Actor for our purposes >:)
+		auto actor = reinterpret_cast<RE::Actor*>(a_actor);
+
+		auto appearance = NPCAppearance::GetNPCAppearance(actor->GetActorBase());
+		if (appearance && appearance->isNPCSwapped) {
+			return appearance->alteredNPCData.bodyPartData;
+		}
+
+		if (!actor->GetActorRuntimeData().race) {
+			return nullptr;
+		}
+
+		return func(actor->GetActorRuntimeData().race);
+	}
+
+	static inline REL::Relocation<decltype(thunk)> func;
+
+	// Install our hook at the specified address
+	static inline void Install()
+	{
+		// TODO: AE/VR
+		REL::Relocation<std::uintptr_t> load3DTarget{ RELOCATION_ID(36198, 0), REL::VariantOffset(0x5A, 0x0, 0x0) };
+
+		// Remove call to replace RCX (actor) with actor's race. This lets our hook have access to the actor data
+		REL::safe_fill(load3DTarget.address() - 0x11, REL::NOP, 0x7);
+		stl::write_thunk_call<GetBodyPartDataHook>(load3DTarget.address());
+
+		// TODO: May need to hook other areas?
+		logger::info("GetBodyPartData hooked at address {:x}", load3DTarget.address());
+		logger::info("GetBodyPartData hooked at offset {:x}", load3DTarget.offset());
+	}
+};
+
 struct GetFaceRelatedDataHook
 {
 	static RE::TESRace::FaceRelatedData* GetFaceData(RE::TESNPC* a_npc)
@@ -217,6 +291,37 @@ struct LoadTESObjectARMOHook2
 
 		logger::info("LoadTESObjectARMOHook hooked at address {:x}", target5.address());
 		logger::info("LoadTESObjectARMOHook hooked at offset {:x}", target5.offset());
+	}
+};
+
+struct PopulateGraphHook
+{
+	static std::uint64_t thunk(RE::Actor* a_actor, std::uint64_t a_unk1, std::uint64_t a_unk2)
+	{
+		auto appearance = NPCAppearance::GetNPCAppearance(a_actor->GetActorBase());
+		auto origRace = a_actor->GetActorRuntimeData().race;
+		if (appearance && appearance->isNPCSwapped) {
+			a_actor->GetActorBase()->race = appearance->alteredNPCData.race;
+		}
+
+		auto result = func(a_actor, a_unk1, a_unk2);
+
+		if (appearance && appearance->isNPCSwapped) {
+			a_actor->GetActorBase()->race = origRace;
+		}
+
+		return result;
+	}
+
+	static inline REL::Relocation<decltype(thunk)> func;
+
+	static inline std::uint32_t idx = 0x72;
+	// Install our hook at the specified address
+	static inline void Install()
+	{
+		stl::write_vfunc<RE::Character, PopulateGraphHook>();
+
+		logger::info("PopulateGraphHook hooked!");
 	}
 };
 
@@ -397,8 +502,10 @@ void hook::InstallHooks()
 	GetTESModelHook::Install();
 	GetFaceRelatedDataHook::Install();
 	GetFaceRelatedDataHook2::Install();
+	GetBodyPartDataHook::Install();
 	LoadTESObjectARMOHook::Install();
 	LoadTESObjectARMOHook2::Install();
+	PopulateGraphHook::Install();
 	RE::ScriptEventSourceHolder::GetSingleton()->AddEventSink(new HandleFormDelete());
 	CopyFromTemplate::Install();
 	CopyNPC::Install();
