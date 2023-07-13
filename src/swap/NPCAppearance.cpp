@@ -6,13 +6,18 @@
 #include "RaceSwap.h"
 #include "Utils.h"
 
-bool NPCAppearance::ApplyNewAppearance(bool updateLoadedActors) {
+static void UpdateLoadedActors(RE::TESNPC* a_npc) {
+	// TODO: Update loaded actors
+}
+
+bool NPCAppearance::ApplyNewAppearance(bool updateLoadedActors)
+{
 	if (isNPCSwapped) {
 		return false;
 	}
 
 	ApplyAppearance(&alteredNPCData);
-	// TODO: Update loaded actors
+	UpdateLoadedActors(npc);
 	return true;
 }
 
@@ -22,7 +27,7 @@ bool NPCAppearance::RevertNewAppearance(bool updateLoadedActors) {
 	}
 
 	ApplyAppearance(&originalNPCData);
-	// TODO: Update loaded actors
+	UpdateLoadedActors(npc);
 	return true;
 }
 
@@ -139,9 +144,23 @@ void NPCAppearance::dtor() {
 	// TODO: Clear/delete the data inside like tint layers, head data, etc.?
 }
 
+// Filter for only NPCs this swapping can work on
+static bool IsNPCValid(RE::TESNPC* a_npc)
+{
+	return a_npc && a_npc->race &&
+	       !a_npc->IsPlayer() &&
+	       !a_npc->IsPreset() &&
+	       a_npc->race->HasKeywordID(constants::Keyword_ActorTypeNPC);
+}
+
 // Gets or create a new NPC appearance. Will be null if NPC has no altered appearance to take
 NPCAppearance* NPCAppearance::GetOrCreateNPCAppearance(RE::TESNPC* a_npc) {
+	if (!IsNPCValid(a_npc)) {
+		return nullptr;
+	}
+	appearanceMapLock.lock();
 	if (appearanceMap.contains(a_npc->formID)) {
+		appearanceMapLock.unlock();
 		return appearanceMap.at(a_npc->formID);
 	}
 
@@ -154,14 +173,17 @@ NPCAppearance* NPCAppearance::GetOrCreateNPCAppearance(RE::TESNPC* a_npc) {
 	logger::info("Creating new appearance for {:x}", a_npc->formID);
 	NPCAppearance* appearance = new NPCAppearance(a_npc, config);
 	appearanceMap.insert(std::pair(a_npc->formID, appearance));
+	appearanceMapLock.unlock();
 	return appearance;
 };
 
 NPCAppearance* NPCAppearance::GetNPCAppearance(RE::TESNPC* a_npc) {
+	appearanceMapLock.lock();
 	if (appearanceMap.contains(a_npc->formID)) {
+		appearanceMapLock.unlock();
 		return appearanceMap.at(a_npc->formID);
 	}
-
+	appearanceMapLock.unlock();
 	return nullptr;
 };
 
