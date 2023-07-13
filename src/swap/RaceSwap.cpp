@@ -3,11 +3,39 @@
 #include "RaceSwap.h"
 #include "RaceSwapDatabase.h"
 
-void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRace) {
+std::string GetHeadPartTypeAsName(RE::BGSHeadPart::HeadPartType a_type) {
+	if (a_type == RE::BGSHeadPart::HeadPartType::kEyebrows) {
+		return "Eyebrows";
+	} else if (a_type == RE::BGSHeadPart::HeadPartType::kEyes) {
+		return "Eyes";
+	} else if (a_type == RE::BGSHeadPart::HeadPartType::kFace) {
+		return "Face";
+	} else if (a_type == RE::BGSHeadPart::HeadPartType::kFacialHair) {
+		return "Facial Hair";
+	} else if (a_type == RE::BGSHeadPart::HeadPartType::kHair) {
+		return "Hair";
+	} else if (a_type == RE::BGSHeadPart::HeadPartType::kMisc) {
+		return "Misc";
+	} else if (a_type == RE::BGSHeadPart::HeadPartType::kScar) {
+		return "Scar";
+	}
+	return "Unknown";
+}
+
+void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRace)
+{
 	if (!a_otherRace || a_data->race == a_otherRace) {
 		// Don't do anything if no other race present, or NPC is already said race
 		return;
 	}
+
+	if (a_data->baseNPC->race->IsChildRace() != a_otherRace->IsChildRace()) {
+		// Don't allow child NPCs swapping to non-child races and vice versa
+		logger::warn("Attempting to swap {:x} to race {} {:x}. Childen cannot be swapped to non-child races and vice versa!",
+			a_data->baseNPC->formID, a_otherRace->GetFormEditorID(), a_otherRace->formID);
+		return;
+	}
+
 	auto originalRace = a_data->race;
 	a_data->race = a_otherRace;
 	a_data->skeletonModel = &a_otherRace->skeletonModels[a_data->isFemale];
@@ -20,16 +48,61 @@ void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRac
 
 	util::RandomGen<RE::TESForm> rand_generator(a_data->baseNPC->GetAsForm(), util::UniqueStringFromForm);
 
-	//To do
-	// General Race Swapping
+	auto database = raceswap::DataBase::GetSingleton();
+
+	// General Race Swapping of head parts
 	for (std::uint8_t i = 0; i < a_data->numHeadParts; i++) {
 		auto newPart = SwitchHeadPart(rand_generator, a_data, a_data->headParts[i]);
-		logger::debug("Swapping {} {:x} to {} {:x}", 
-			a_data->headParts[i]->type.underlying(), 
-			a_data->headParts[i]->formID, 
-			newPart->type.underlying(), 
+		auto oldPart = a_data->headParts[i];
+		logger::debug("{:x} Swapping {} {} {:x} to {} {} {:x}", 
+			a_data->baseNPC->formID,
+			GetHeadPartTypeAsName(oldPart->type.get()),
+			database->GetFormEditorID(oldPart->formID),
+			oldPart->formID, 
+
+			GetHeadPartTypeAsName(newPart->type.get()), 
+			database->GetFormEditorID(newPart->formID),
 			newPart->formID);
+
 		a_data->headParts[i] = newPart;
+	}
+
+	// Second passthrough, grab all extras
+	std::vector<RE::BGSHeadPart*> extras;
+	for (std::uint8_t i = 0; i < a_data->numHeadParts; i++) {
+		auto part = a_data->headParts[i];
+		for (auto& extra : part->extraParts) {
+			extras.push_back(extra);
+		}
+	}
+	
+	// Third passthrough, any head parts covered by extras is replaced with the offending extra
+	for (std::uint8_t i = 0; i < a_data->numHeadParts; i++) {
+		auto part = a_data->headParts[i];
+		auto partData = database->FindOrCalculateHDPTData(a_data->headParts[i]);
+		RE::BGSHeadPart* replacingExtra = nullptr;
+		
+		for (auto& extra : extras) {
+			auto extraData = database->FindOrCalculateHDPTData(extra);
+			if (std::get<0>(*extraData) == std::get<0>(*partData) && 
+				part->type == extra->type) {
+				replacingExtra = extra;
+				break;
+			}
+		}
+
+		if (replacingExtra) {
+			logger::debug("{:x} {} {} {:x} replaced with existing extra {} {} {:x}",
+				a_data->baseNPC->formID,
+				GetHeadPartTypeAsName(part->type.get()),
+				database->GetFormEditorID(part->formID),
+				part->formID,
+
+				GetHeadPartTypeAsName(replacingExtra->type.get()),
+				database->GetFormEditorID(replacingExtra->formID),
+				replacingExtra->formID);
+			a_data->headParts[i] = replacingExtra;
+		}
 	}
 
 	DoTints(rand_generator, a_data, originalRace);
@@ -54,7 +127,7 @@ bool RaceSwap::DoHeadMorphs(util::RandomGen<RE::TESForm> rand_gen, NPCAppearance
 	auto morphs = newNPC->faceData->morphs;
 	auto parts = newNPC->faceData->parts;
 
-	logger::info("  Swapping morphs/parts");
+	logger::debug("  Swapping morphs/parts");
 	for (auto i = 0; i < RE::TESNPC::FaceData::Morphs::kTotal; i++) {
 		a_data->faceData->morphs[i] = morphs[i];
 	}
@@ -147,11 +220,12 @@ bool RaceSwap::DoTints(util::RandomGen<RE::TESForm> rand_gen, NPCAppearance::NPC
 		tint->tintColor = new_tint->presets.colors[presetIdx]->color;
 		tint->tintColor.alpha = alpha;
 
-		// TODO: Interpolation may need changing?
-
 		// Update body tint color if this is for skin
 		if (new_tint->texture.skinTone == RE::TESRace::FaceRelatedData::TintAsset::TintLayer::SkinTone::kSkinTone) {
 			a_data->bodyTintColor = tint->tintColor;
+			// This seems to make the skin tint correctly match the body tint
+			tint->interpolationValue = 100;
+			tint->tintColor.alpha = 255;
 			bodyColorFixed = true;
 			logger::info("  Skin tone changed to RGB:{}|{}|{}|{}", tint->tintColor.red, tint->tintColor.green, tint->tintColor.blue, tint->tintColor.alpha);
 		}
@@ -193,18 +267,18 @@ RE::BGSHeadPart* RaceSwap::SwitchHeadPart(util::RandomGen<RE::TESForm> rand_gen,
 
 	bool invalid_item = !database->IsValidHeadPart(a_part);
 
-	if (invalid_item) {
-		logger::info("  Invalid head part {:x}", a_part->formID);
-		return a_part;
-	} else {
-		raceswap::DataBase::HDPTData hdptd = *(database->FindOrCalculateHDPTData(a_part));
-		auto item_list = database->GetMatchedResults(head_part_type, static_cast<RE::SEX>(a_data->isFemale), a_data->race, hdptd);
+	raceswap::DataBase::HDPTData hdptd = *(database->FindOrCalculateHDPTData(a_part));
+	auto item_list = database->GetMatchedResults(head_part_type, static_cast<RE::SEX>(a_data->isFemale), a_data->race, hdptd);
 
-		auto new_item = util::random_pick(item_list, rand_gen.GetNext());
-		if (new_item) {
-			return new_item;
-		} else {
-			return a_part;
-		}
+	auto new_item = util::random_pick(item_list, rand_gen.GetNext());
+	if (new_item && !database->IsValidHeadPart(new_item)) {
+		// TODO: Exclude invalid head parts?
+		logger::warn("  {:x} is an invalid head part!", new_item->formID);
+	}
+	if (new_item) {
+		return new_item;
+	} else {
+		logger::debug("New headpart is null, keeping original!");
+		return a_part;
 	}
 }

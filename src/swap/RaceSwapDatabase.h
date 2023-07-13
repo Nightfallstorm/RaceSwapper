@@ -45,7 +45,6 @@ namespace raceswap
 
 		enum HDPTCharacteristics : std::uint32_t
 		{
-			// TODO: Finish filling this
 			Blind = 1 << 0,
 			Left = 1 << 1,
 			Right = 1 << 2,
@@ -142,6 +141,9 @@ namespace raceswap
 
 		std::unordered_map<RE::SEX, std::unordered_map<RE::TESRace*, RE::TESRace::FaceRelatedData::TintAsset*>> default_skintint_for_each_race;
 
+		std::unordered_set<RE::BGSHeadPart*> usedHeadparts; // TODO: May need this to get rid of bad headparts?
+
+
 		bool dumplists;
 
 		inline static DataBase* & GetSingleton(bool _dumplists = true)
@@ -226,6 +228,18 @@ namespace raceswap
 			}
 
 			if (hdpt->validRaces == nullptr) {
+				return false;
+			}
+
+			// TODO: Filter out unused headparts that are also non-playable
+			// Prevents exploding heads in the case of Skyfurry, which has bad unused headparts
+			// if (!hdpt->GetPlayable() && )
+
+			auto modelFilePath = "meshes\\" + std::string(hdpt->model.c_str());
+
+			if (!RE::BSResourceNiBinaryStream(modelFilePath).good() && !hdpt->model.empty()) {
+				// model filename does not exist in BSA archive or as loose file
+				logger::debug("{} is not a valid resource!", modelFilePath);
 				return false;
 			}
 
