@@ -10,43 +10,14 @@ struct CEHelper
 	RE::TESRace* KhajiitRace = nullptr;
 	RE::TESRace* CowRace = nullptr;
 } cehelper;
-// Filter for only NPCs this swapping can work on
-bool IsNPCValid(RE::TESNPC* a_npc)
-{
-	return !a_npc->IsPlayer() &&
-	       !a_npc->IsPreset() &&
-	       !a_npc->IsDynamicForm() &&
-
-	       a_npc->race &&
-	       a_npc->race->HasKeywordID(constants::Keyword_ActorTypeNPC);
-}
 
 void MessageInterface(SKSE::MessagingInterface::Message* msg) {
 	switch (msg->type) {
 	case SKSE::MessagingInterface::kDataLoaded:
 		ConfigurationDatabase::GetSingleton()->Initialize();
-
-		logger::info("Starting appearance swaps");
 		cehelper.KhajiitRace = RE::TESForm::LookupByID(constants::KhajiitRace)->As<RE::TESRace>();
 		cehelper.CowRace = RE::TESForm::LookupByID(constants::CowRace)->As<RE::TESRace>();
-		auto [map, lock] = RE::TESForm::GetAllForms();
-		lock.get().LockForWrite();
-
-		for (auto& [formID, form] : *map) {
-			if (form->As<RE::TESNPC>() && IsNPCValid(form->As<RE::TESNPC>())) {
-				logger::info("Start Swapping appearance of {:x}", formID);
-				auto NPCAppearance = NPCAppearance::GetOrCreateNPCAppearance(form->As<RE::TESNPC>());
-				if (NPCAppearance) {
-					logger::info("Swapping appearance of {:x}", formID);
-					NPCAppearance->ApplyNewAppearance(false);
-				}
-			}
-		}
-
-		lock.get().UnlockForWrite();
-
 		hook::InstallHooks();
-		logger::info("Appearance Swaps complete!");
 		break;
 	}
 }
@@ -64,8 +35,14 @@ void InitializeLog()
 
 	auto log = std::make_shared<spdlog::logger>("global log"s, std::move(sink));
 
+#ifdef _DEBUG
+	log->set_level(spdlog::level::debug);
+	log->flush_on(spdlog::level::debug);
+#else
 	log->set_level(spdlog::level::info);
 	log->flush_on(spdlog::level::info);
+#endif
+	
 
 	spdlog::set_default_logger(std::move(log));
 	spdlog::set_pattern("[%H:%M:%S:%e] %v"s);
