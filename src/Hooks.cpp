@@ -195,42 +195,39 @@ struct GetFaceRelatedDataHook2
 struct LoadTESObjectARMOHook
 {
 	// Based off 1.5.97 TESObjectARMA::ContainsRace_140226D70(v9[i], a_race)
-	static std::uint64_t thunk(std::uint64_t a_unk, RE::TESRace* a_npc, std::uint64_t a_unk1, bool isFemale)
+	// We swap the race being passed to be what the NPC's new appearance is
+	static std::uint64_t thunk(RE::TESObjectARMO* a_armor, RE::TESRace* a_race, RE::BipedAnim** a_anim, bool isFemale)
 	{
-		// a_npc WAS a_race, but our asm kept it as RE::TESNPC for our use case
-		auto NPC = reinterpret_cast<RE::TESNPC*>(a_npc);
-		auto race = NPC->race;
+		auto race = a_race;
+		auto NPC = (*a_anim)->actorRef.get().get()->As<RE::Actor>()->GetActorBase();
+
+		logger::debug("LoadTESObjectARMOHook: Loading {} {:x} for NPC {} {:x}",
+			a_armor->GetFormEditorID(), a_armor->formID,
+			NPC->GetFormEditorID(), NPC->formID);
+
 
 		NPCAppearance* appearance = NPCAppearance::GetNPCAppearance(NPC);
 		if (appearance != nullptr && appearance->isNPCSwapped) {
 			// Swap to new appearance's race
+			// TODO: Separate armor race?
 			race = appearance->alteredNPCData.race;
 		}
-		return func(a_unk, race, a_unk1, isFemale);
+		return func(a_armor, race, a_anim, isFemale);
 	}
 
+	// TESObjectARMO::AddToBiped(...)
 	static inline REL::Relocation<decltype(thunk)> func;
 
 	// Install our hook at the specified address
 	static inline void Install()
 	{
-		// TODO: One use of TESObjectARMO::AddToBiped not hooked, may need hook?
 		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(24232, 24736), REL::VariantOffset(0x302, 0x302, 0x302) };
-		std::byte bytes[] = { (std::byte)0x48, (std::byte)0x89, (std::byte)0xCA };  // mov rdx, rcx
-		REL::safe_fill(target.address() - 0xA, REL::NOP, 0x7);                      // NOP previous instruction (mov rdx, [rcx+0x158])
-		REL::safe_write(target.address() - 0xA, bytes, 3);
 		stl::write_thunk_call<LoadTESObjectARMOHook>(target.address());
 
 		REL::Relocation<std::uintptr_t> target2{ RELOCATION_ID(24233, 24737), REL::VariantOffset(0x78, 0x78, 0x78) };
-		std::byte bytes2[] = { (std::byte)0x48, (std::byte)0x89, (std::byte)0xCA };  // mov rdx, rcx
-		REL::safe_fill(target2.address() - 0xE, REL::NOP, 0x7);                      // NOP previous instruction (mov rdx, [rcx+0x158])
-		REL::safe_write(target2.address() - 0xE, bytes2, 3);
 		stl::write_thunk_call<LoadTESObjectARMOHook>(target2.address());
 
 		REL::Relocation<std::uintptr_t> target3{ RELOCATION_ID(24237, 24741), REL::VariantOffset(0xEE, 0xEE, 0xEE) };
-		std::byte bytes3[] = { (std::byte)0x48, (std::byte)0x89, (std::byte)0xF2 };  // mov rdx, rsi
-		REL::safe_fill(target3.address() - 0xB, REL::NOP, 0x7);                      // NOP previous instruction (mov rdx, [rsi+0x158])
-		REL::safe_write(target3.address() - 0xB, bytes3, 3);
 		stl::write_thunk_call<LoadTESObjectARMOHook>(target3.address());
 
 		logger::info("LoadTESObjectARMOHook hooked at address {:x}", target.address());
@@ -244,53 +241,63 @@ struct LoadTESObjectARMOHook
 	}
 };
 
-struct LoadTESObjectARMOHook2
+struct LoadSkinHook
 {
 	// Based off 1.5.97 TESObjectARMA::ContainsRace_140226D70(v9[i], a_race)
-	static std::uint64_t thunk(std::uint64_t a_unk, RE::TESRace* a_npc, std::uint64_t a_unk1, bool isFemale)
+	// We swap the race being passed to be what the NPC's new appearance is
+	// We also swap the armor skin to make sure it is correct
+	static std::uint64_t thunk(RE::TESObjectARMO* a_skin, RE::TESRace* a_race, RE::BipedAnim** a_anim, bool isFemale)
 	{
-		// a_npc WAS a_race, but our asm kept it as RE::TESNPC for our use case
-		auto NPC = reinterpret_cast<RE::TESNPC*>(a_npc);
-		auto race = NPC->race;
+		auto race = a_race;
+		auto NPC = (*a_anim)->actorRef.get().get()->As<RE::Actor>()->GetActorBase();
+		auto skin = a_skin;
 
-		NPCAppearance* appearance = NPCAppearance::GetNPCAppearance(NPC);
+		NPCAppearance* appearance = ApplyAppearanceToNPC(NPC);
 		if (appearance != nullptr && appearance->isNPCSwapped) {
+			// Swap to new appearance's race and skin
+			// TODO: Separate armor race?
 			race = appearance->alteredNPCData.race;
+			skin = appearance->alteredNPCData.skin;
+			logger::debug("LoadSkinHook: Swap occurred!");
 		}
-
-		return func(a_unk, race, a_unk1, isFemale);
+		logger::debug("LoadSkinHook: Loading {} {:x} for NPC {} {:x}",
+			skin->GetFormEditorID(), skin->formID,
+			NPC->GetFormEditorID(), NPC->formID);
+		return func(skin, race, a_anim, isFemale);
 	}
 
+	// This hook seems to be the best earliest hook spot for applying appearance as the NPC loads
+	static NPCAppearance* ApplyAppearanceToNPC(RE::TESNPC* a_npc)
+	{
+		logger::debug("Loading {:x} appearance from LoadSkinHook hook", a_npc->formID);
+
+		auto appearance = NPCAppearance::GetOrCreateNPCAppearance(a_npc);
+		auto faceAppearance = NPCAppearance::GetOrCreateNPCAppearance(a_npc->faceNPC);
+
+		// Apply face NPC swap first if present, for template NPC
+		if (faceAppearance && !faceAppearance->isNPCSwapped) {
+			faceAppearance->ApplyNewAppearance(false);
+		}
+
+		if (appearance && !appearance->isNPCSwapped) {
+			appearance->ApplyNewAppearance(false);
+		}
+
+		return appearance;
+	}
+
+	// TESObjectARMO::AddToBiped(...)
 	static inline REL::Relocation<decltype(thunk)> func;
 
 	// Install our hook at the specified address
 	static inline void Install()
 	{
-		REL::Relocation<std::uintptr_t> target4{ RELOCATION_ID(24221, 24725), REL::VariantOffset(0x189, 0x191, 0x189) };
-		if (REL::Module::IsAE()) {
-			std::byte bytes4[] = { (std::byte)0x48, (std::byte)0x89, (std::byte)0xF2 };  // mov rdx, rsi
-			REL::safe_fill(target4.address() - 0xA, REL::NOP, 0x7);                      // NOP previous instruction (mov rdx, [rsi+0x158])
-			REL::safe_write(target4.address() - 0xA, bytes4, 3);
-		} else {
-			std::byte bytes4[] = { (std::byte)0x48, (std::byte)0x89, (std::byte)0xDA };  // mov rdx, rbx
-			REL::safe_fill(target4.address() - 0x7, REL::NOP, 0x7);                      // NOP previous instruction (mov rdx, [rbx+0x158])
-			REL::safe_write(target4.address() - 0x7, bytes4, 3);
-		}		
-		stl::write_thunk_call<LoadTESObjectARMOHook2>(target4.address());
+		// TODO: AE/VR
+		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(15499, 0), REL::VariantOffset(0x173, 0x0, 0x0) };
+		stl::write_thunk_call<LoadSkinHook>(target.address());
 
-
-
-		REL::Relocation<std::uintptr_t> target5{ RELOCATION_ID(24237, 24741), REL::VariantOffset(0x52, 0x52, 0x52) };
-		std::byte bytes5[] = { (std::byte)0x48, (std::byte)0x89, (std::byte)0xCA };  // mov rdx, rcx
-		REL::safe_fill(target5.address() - 0xE, REL::NOP, 0x7);                      // NOP previous instruction (mov rdx, [rcx+0x158])
-		REL::safe_write(target5.address() - 0xE, bytes5, 3);
-		stl::write_thunk_call<LoadTESObjectARMOHook2>(target5.address());
-
-		logger::info("LoadTESObjectARMOHook hooked at address {:x}", target4.address());
-		logger::info("LoadTESObjectARMOHook hooked at offset {:x}", target4.offset());
-
-		logger::info("LoadTESObjectARMOHook hooked at address {:x}", target5.address());
-		logger::info("LoadTESObjectARMOHook hooked at offset {:x}", target5.offset());
+		logger::info("LoadSkinHook hooked at address {:x}", target.address());
+		logger::info("LoadSkinHook hooked at offset {:x}", target.offset());
 	}
 };
 
@@ -325,8 +332,6 @@ struct PopulateGraphHook
 	}
 };
 
-// TODO: Grab animation/behavior data from race
-
 struct CopyFromTemplate
 {
 	static void thunk(RE::TESActorBaseData* a_self, RE::TESActorBase* a_template)
@@ -358,7 +363,7 @@ struct CopyFromTemplate
 		logger::info("Handling base NPC: {} {:x}", NPC->GetFullName(), NPC->formID);
 		auto NPCAppearance = NPCAppearance::GetOrCreateNPCAppearance(NPC);
 		if (NPCAppearance) {
-			NPCAppearance->ApplyNewAppearance(false); // TODO: Check this. May require true here.
+			NPCAppearance->ApplyNewAppearance(false);
 		}
 	}
 
@@ -504,7 +509,7 @@ void hook::InstallHooks()
 	GetFaceRelatedDataHook2::Install();
 	GetBodyPartDataHook::Install();
 	LoadTESObjectARMOHook::Install();
-	LoadTESObjectARMOHook2::Install();
+	LoadSkinHook::Install();
 	PopulateGraphHook::Install();
 	RE::ScriptEventSourceHolder::GetSingleton()->AddEventSink(new HandleFormDelete());
 	CopyFromTemplate::Install();
