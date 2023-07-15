@@ -59,20 +59,20 @@ void NPCAppearance::ApplyAppearance(NPCData* a_data)
 		npc->tintLayers->clear();
 	}
 
-	npc->tintLayers = CopyTintLayers(a_data->tintLayers);
+	npc->tintLayers = utils::CopyTintLayers(a_data->tintLayers);
 
 	npc->faceNPC = a_data->faceNPC;
 	if (npc->faceNPC == npc) {
 		npc->faceNPC = nullptr;
 	}
 
-	npc->headRelatedData = CopyHeadRelatedData(a_data->headRelatedData);
+	npc->headRelatedData = utils::CopyHeadRelatedData(a_data->headRelatedData);
 
 	npc->numHeadParts = a_data->numHeadParts;
-	npc->headParts = CopyHeadParts(a_data->headParts, a_data->numHeadParts);
+	npc->headParts = utils::CopyHeadParts(a_data->headParts, a_data->numHeadParts);
 
 	// TODO: Check for default face struct here?
-	npc->faceData = DeepCopyFaceData(a_data->faceData);
+	npc->faceData = utils::DeepCopyFaceData(a_data->faceData);
 }
 
 void NPCAppearance::InitializeNPCData(NPCData* a_data)
@@ -90,7 +90,7 @@ void NPCAppearance::InitializeNPCData(NPCData* a_data)
 
 	a_data->bodyTintColor = npc->bodyTintColor;
 
-	a_data->tintLayers = CopyTintLayers(npc->tintLayers);
+	a_data->tintLayers = utils::CopyTintLayers(npc->tintLayers);
 	CopyFaceData(a_data);
 	a_data->skeletonModel = &npc->race->skeletonModels[npc->GetSex()];
 
@@ -112,13 +112,13 @@ void NPCAppearance::CopyFaceData(NPCData* a_data)
 	if (a_data->headRelatedData) {
 		memoryManager->Deallocate(a_data->headRelatedData, 0);
 	}
-	a_data->headRelatedData = CopyHeadRelatedData(a_data->faceNPC->headRelatedData);
+	a_data->headRelatedData = utils::CopyHeadRelatedData(a_data->faceNPC->headRelatedData);
 
 	a_data->numHeadParts = a_data->faceNPC->numHeadParts;
-	a_data->headParts = CopyHeadParts(a_data->faceNPC->headParts, a_data->faceNPC->numHeadParts);
+	a_data->headParts = utils::CopyHeadParts(a_data->faceNPC->headParts, a_data->faceNPC->numHeadParts);
 
 	// TODO: Check for default face struct here?
-	a_data->faceData = DeepCopyFaceData(a_data->faceNPC->faceData);
+	a_data->faceData = utils::DeepCopyFaceData(a_data->faceNPC->faceData);
 
 	a_data->faceRelatedData = a_data->faceNPC->race->faceRelatedData[npc->GetSex()];
 }
@@ -167,6 +167,7 @@ NPCAppearance* NPCAppearance::GetOrCreateNPCAppearance(RE::TESNPC* a_npc) {
 	auto config = ConfigurationDatabase::GetSingleton()->GetConfigurationForNPC(a_npc);
 
 	if (config == nullptr) {
+		appearanceMapLock.unlock();
 		return nullptr;
 	}
 

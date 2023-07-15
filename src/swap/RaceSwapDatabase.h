@@ -141,7 +141,7 @@ namespace raceswap
 
 		std::unordered_map<RE::SEX, std::unordered_map<RE::TESRace*, RE::TESRace::FaceRelatedData::TintAsset*>> default_skintint_for_each_race;
 
-		std::unordered_set<RE::BGSHeadPart*> usedHeadparts; // TODO: May need this to get rid of bad headparts?
+		std::unordered_set<RE::BGSHeadPart*> usedHeadparts;
 
 
 		bool dumplists;
@@ -158,7 +158,7 @@ namespace raceswap
 		{
 			auto iter = _hdptd_cache.find(hdpt);
 			if (iter == _hdptd_cache.end()) {
-				HDPTData* hdptd_ptr = new HDPTData(util::ExtractKeywords(hdpt));
+				HDPTData* hdptd_ptr = new HDPTData(raceutils::ExtractKeywords(hdpt));
 				_hdptd_cache[hdpt] = hdptd_ptr;
 				return hdptd_ptr;
 			} else {
@@ -168,9 +168,9 @@ namespace raceswap
 
 		inline std::vector<RE::BGSHeadPart*> GetHeadParts(HeadPartType type, RE::SEX sex, RE::TESRace* race)
 		{
-			if (util::is_amongst(valid_type_race_headpart_map, sex)) {
-				if (util::is_amongst(valid_type_race_headpart_map[sex], type)) {
-					if (util::is_amongst(valid_type_race_headpart_map[sex][type], race)) {
+			if (raceutils::is_amongst(valid_type_race_headpart_map, sex)) {
+				if (raceutils::is_amongst(valid_type_race_headpart_map[sex], type)) {
+					if (raceutils::is_amongst(valid_type_race_headpart_map[sex][type], race)) {
 						return valid_type_race_headpart_map[sex][type][race];
 					}
 				}
@@ -180,9 +180,9 @@ namespace raceswap
 
 		inline std::vector<HDPTData*> GetHDPTData(HeadPartType type, RE::SEX sex, RE::TESRace* race)
 		{
-			if (util::is_amongst(valid_type_race_HDPTdata_map, sex)) {
-				if (util::is_amongst(valid_type_race_HDPTdata_map[sex], type)) {
-					if (util::is_amongst(valid_type_race_HDPTdata_map[sex][type], race)) {
+			if (raceutils::is_amongst(valid_type_race_HDPTdata_map, sex)) {
+				if (raceutils::is_amongst(valid_type_race_HDPTdata_map[sex], type)) {
+					if (raceutils::is_amongst(valid_type_race_HDPTdata_map[sex][type], race)) {
 						return valid_type_race_HDPTdata_map[sex][type][race];
 					}
 				}
@@ -194,14 +194,14 @@ namespace raceswap
 			auto hdpts = GetHeadParts(type, sex, race);
 			auto hdptd = GetHDPTData(type, sex, race);
 			auto dst_hdptd = FindOrCalculateHDPTData(hdpt);
-			return util::MatchHDPTData(*dst_hdptd, hdpts, hdptd);
+			return raceutils::MatchHDPTData(*dst_hdptd, hdpts, hdptd);
 		}
 
 		inline std::vector<RE::BGSHeadPart*> GetMatchedResults(HeadPartType type, RE::SEX sex, RE::TESRace* race, HDPTData hdptdata)
 		{
 			auto hdpts = GetHeadParts(type, sex, race);
 			auto hdptd = GetHDPTData(type, sex, race);
-			return util::MatchHDPTData(hdptdata, hdpts, hdptd);
+			return raceutils::MatchHDPTData(hdptdata, hdpts, hdptd);
 		}
 
 		RE::TESRace::FaceRelatedData::TintAsset* GetRaceSkinTint(RE::SEX sex, RE::TESRace* race) {
@@ -231,9 +231,12 @@ namespace raceswap
 				return false;
 			}
 
-			// TODO: Filter out unused headparts that are also non-playable
-			// Prevents exploding heads in the case of Skyfurry, which has bad unused headparts
-			// if (!hdpt->GetPlayable() && )
+			if (!hdpt->flags.any(RE::BGSHeadPart::Flag::kPlayable) &&
+				!usedHeadparts.contains(hdpt)) {
+				// Headpart is not used, and the player cannot use the headpart, treat as unwanted
+				// Prevents exploding heads in the case of Skyfurry, which has bad unused headparts
+				return false;
+			}
 
 			auto modelFilePath = "meshes\\" + std::string(hdpt->model.c_str());
 
@@ -259,26 +262,6 @@ namespace raceswap
 		DataBase(bool _dumplists): dumplists(_dumplists)
 		{
 			_initialize();
-		}
-
-		template<class Elem_T>
-		void _dump_list(std::vector<Elem_T*> list, const char* name, int indent = 2)
-		{
-			logger::info("{}", name);
-
-			std::string spaces;
-			while (indent--) {
-				spaces += " ";
-			}
-
-			for (auto item : list) {
-				if (item) {
-					std::string_view a = GetFormEditorID(item->formID);
-					logger::info("{}EditorID: {}, FormID: {:x}", spaces.c_str(), a, item->GetFormID());
-				}
-				else
-					logger::info("{}[nullptr]", spaces.c_str());
-			}
 		}
 
 		void _initialize() {
@@ -332,7 +315,17 @@ namespace raceswap
 						// TODO: We could make this cleaner/simpler
 						valid_races.push_back(form->As<RE::TESRace>());
 					}
-					
+				} else if (form->Is(RE::FormType::NPC)) {
+					auto& headparts = form->As<RE::TESNPC>()->headParts;
+					auto numHeadParts = form->As<RE::TESNPC>()->numHeadParts;
+
+					for (std::uint8_t i = 0; i < numHeadParts; i++) {
+						auto& headpart = headparts[i];
+						usedHeadparts.emplace(headpart);
+						for (auto extra : headpart->extraParts) {
+							usedHeadparts.emplace(extra);
+						}
+					}
 				}
 			}
 
@@ -368,36 +361,6 @@ namespace raceswap
 			lock.get().UnlockForRead();
 
 			logger::info("Finished categorizing...");
-			//if (dumplists)
-				// TODO:
-				//_dump_info();
-
-		}
-
-		void _dump_info() {
-			_dump_list(valid_races, "Valid Races: ");
-
-			logger::info("Valid list:");
-			for (auto sub_list1 : valid_type_race_headpart_map) {
-				for (auto sub_list2 : sub_list1.second) {
-					for (auto sub_list3 : sub_list2.second) {
-						std::string list_name;
-						list_name += sub_list1.first ? "  Female " : "  Male ";
-						if (sub_list2.first == HeadPartType::kHair)
-							list_name += "Hair ";
-						else if (sub_list2.first == HeadPartType::kEyes)
-							list_name += "Eyes ";
-						else if (sub_list2.first == HeadPartType::kScar)
-							list_name += "Scars ";
-						else if (sub_list2.first == HeadPartType::kFacialHair)
-							list_name += "Beards ";
-
-						list_name += sub_list3.first->GetFormEditorID();
-
-						_dump_list(sub_list3.second, list_name.c_str(), 4);
-					}
-				}
-			}
 		}
 
 		std::unordered_map<RE::BGSHeadPart*, HDPTData*> _hdptd_cache;

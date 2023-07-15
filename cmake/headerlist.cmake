@@ -7,6 +7,7 @@ set(headers ${headers}
 	src/swap/RaceSwap.h
 	src/swap/NPCAppearance.h
 	src/configuration/Configuration.h
-	src/swap/Utils.h
+	src/configuration/ConfigurationEntry.h
+	src/Utils.h
 	src/swap/RaceSwapDatabase.h
 )

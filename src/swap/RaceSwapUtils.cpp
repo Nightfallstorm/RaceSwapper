@@ -2,47 +2,8 @@
 #include "PCH.h"
 #include "RaceSwapDatabase.h"
 
-namespace util
+namespace raceutils
 {
-	size_t hash1(std::string str)
-	{
-		std::hash<std::string> hash_fn;
-		return hash_fn(str);
-	}
-
-	size_t hash2(std::string data)
-	{
-		long p = 16777619;
-
-		size_t hash = 2166136261L;
-
-		for (int i = 0; i < data.length(); i++) {
-			hash = (hash ^ data[i]) * p;
-
-			hash += hash << 13;
-
-			hash ^= hash >> 7;
-
-			hash += hash << 3;
-
-			hash ^= hash << 17;
-
-			hash += hash >> 5;
-		}
-		return hash;
-	}
-
-	std::string UniqueStringFromForm(RE::TESForm* a_form_seed)
-	{
-		if (!a_form_seed)
-			return std::string();
-		auto fileName = "DynamicForm";
-		if (!a_form_seed->IsDynamicForm()) {
-			fileName = a_form_seed->GetFile()->fileName;
-		}
-		return std::to_string(a_form_seed->GetFormID() & 0x00FFFFFF) + "_" + fileName;
-	}
-
 	HDPTData ExtractKeywords(RE::BGSHeadPart* hdpt)
 	{
 		std::uint32_t types = 0;

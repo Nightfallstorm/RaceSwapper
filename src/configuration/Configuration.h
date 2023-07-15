@@ -1,11 +1,11 @@
 #pragma once
 #include <utility>
+#include "ConfigurationEntry.h"
 
 struct AppearanceConfiguration
 {
 	std::pair<RE::TESNPC*, std::uint32_t> otherNPC;
 	std::pair<RE::TESRace*, std::uint32_t> otherRace;
-	std::pair<RE::BGSOutfit*, std::uint32_t> otherOutfit;
 };
 
 class ConfigurationDatabase
@@ -33,19 +33,11 @@ public:
 	void Initialize();
 
 	AppearanceConfiguration* GetConfigurationForNPC(RE::TESNPC* a_npc);
+
+private:
+
+	void ApplyConfiguration(ConfigurationEntry* a_entry, AppearanceConfiguration* a_config);
+
+	std::vector<ConfigurationEntry*> entries;
 };
 
-class ConfigurationEntry
-{
-	struct EntryData
-	{
-		RE::TESNPC* npc;
-		RE::TESRace* otherRace;
-		RE::BGSOutfit* otherOutfit;
-		std::uint32_t priority;
-	};
-
-	bool MatchesNPC(RE::TESNPC* a_npc);
-
-	void ApplyEntry(AppearanceConfiguration* a_config);
-};

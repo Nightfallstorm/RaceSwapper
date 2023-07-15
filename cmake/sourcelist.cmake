@@ -8,4 +8,6 @@ set(sources ${sources}
 	src/swap/RaceSwap.cpp
 	src/swap/NPCAppearance.cpp
 	src/configuration/Configuration.cpp
+	src/configuration/ConfigurationEntry.cpp
+	src/Utils.cpp
 )

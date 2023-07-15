@@ -1,5 +1,6 @@
 #include "PCH.h"
 #include "RaceSwapUtils.h"
+#include "Utils.h"
 #include "RaceSwap.h"
 #include "RaceSwapDatabase.h"
 
@@ -46,7 +47,7 @@ void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRac
 	a_data->bodyTextureModel = &a_otherRace->bodyTextureModels[a_data->isFemale];
 	a_data->behaviorGraph = &a_otherRace->behaviorGraphs[a_data->isFemale];
 
-	util::RandomGen<RE::TESForm> rand_generator(a_data->baseNPC->GetAsForm(), util::UniqueStringFromForm);
+	raceutils::RandomGen rand_generator(a_data->baseNPC);
 
 	auto database = raceswap::DataBase::GetSingleton();
 
@@ -111,19 +112,22 @@ void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRac
 	return;
 }
 
-bool RaceSwap::DoHeadMorphs(util::RandomGen<RE::TESForm> rand_gen, NPCAppearance::NPCData* a_data)
+bool RaceSwap::DoHeadMorphs(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data)
 {
 	if (!a_data->race->faceRelatedData[a_data->isFemale]) {
 		return false;
 	}
 	// Pick a random preset, and set morphs/parts to match
 	auto presetNPCs = a_data->race->faceRelatedData[a_data->isFemale]->presetNPCs;
-	auto newNPC = util::random_pick(*presetNPCs, rand_gen.GetNext());
-
-	if (!newNPC) {
-		logger::info("  No preset NPC to get morphs from");
+	if (!presetNPCs || presetNPCs->empty()) {
+		logger::info("  No presets available!");
 		return false;
 	}
+	auto newNPC = raceutils::random_pick(
+		*presetNPCs, 
+		(int) rand_gen.GetNext()
+	);
+
 	auto morphs = newNPC->faceData->morphs;
 	auto parts = newNPC->faceData->parts;
 
@@ -141,12 +145,11 @@ bool RaceSwap::DoHeadMorphs(util::RandomGen<RE::TESForm> rand_gen, NPCAppearance
 
 std::uint16_t GetClosestPresetIdx(RE::Color a_color, RE::TESRace::FaceRelatedData::TintAsset::Presets a_presets) {
 	std::uint16_t closestPresetIdx = 0;
-	float closestPresetMatch = 1000000; // Closer to 0.0 is better
+	int closestPresetMatch = 1000000;  // Closer to 0.0 is better
 	for (std::uint16_t i = 0; i < a_presets.colors.size(); i++) {
 		RE::Color currentColor = a_presets.colors[i]->color;
 		
-		float currentPresetMatch = std::abs(a_color.alpha - currentColor.alpha) +
-		                           std::abs(a_color.blue - currentColor.blue) +
+		int currentPresetMatch = std::abs(a_color.blue - currentColor.blue) +
 		                           std::abs(a_color.green - currentColor.green) +
 		                           std::abs(a_color.red - currentColor.red);
 
@@ -159,7 +162,7 @@ std::uint16_t GetClosestPresetIdx(RE::Color a_color, RE::TESRace::FaceRelatedDat
 	return closestPresetIdx;
 }
 
-bool RaceSwap::DoTints(util::RandomGen<RE::TESForm> rand_gen, NPCAppearance::NPCData* a_data, RE::TESRace* a_originalRace)
+bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data, RE::TESRace* a_originalRace)
 {
 	if (!a_data->tintLayers || 
 		!a_originalRace->faceRelatedData[a_data->isFemale] ||
@@ -207,7 +210,7 @@ bool RaceSwap::DoTints(util::RandomGen<RE::TESForm> rand_gen, NPCAppearance::NPC
 			break;
 		}
 
-		auto new_tint = util::random_pick(*matchedTints, rand_gen.GetNext());
+		auto new_tint = raceutils::random_pick(*matchedTints, rand_gen.GetNext());
 
 		// Replace values of original tint with new tint, keeping closest color match that's within the asset's presets
 
@@ -256,7 +259,7 @@ bool RaceSwap::DoTints(util::RandomGen<RE::TESForm> rand_gen, NPCAppearance::NPC
 	return true;
 }
 
-RE::BGSHeadPart* RaceSwap::SwitchHeadPart(util::RandomGen<RE::TESForm> rand_gen, NPCAppearance::NPCData* a_data, RE::BGSHeadPart* a_part)
+RE::BGSHeadPart* RaceSwap::SwitchHeadPart(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data, RE::BGSHeadPart* a_part)
 {
 	if (a_part == nullptr) {
 		return a_part;
@@ -265,12 +268,10 @@ RE::BGSHeadPart* RaceSwap::SwitchHeadPart(util::RandomGen<RE::TESForm> rand_gen,
 
 	auto database = raceswap::DataBase::GetSingleton();
 
-	bool invalid_item = !database->IsValidHeadPart(a_part);
-
 	raceswap::DataBase::HDPTData hdptd = *(database->FindOrCalculateHDPTData(a_part));
 	auto item_list = database->GetMatchedResults(head_part_type, static_cast<RE::SEX>(a_data->isFemale), a_data->race, hdptd);
 
-	auto new_item = util::random_pick(item_list, rand_gen.GetNext());
+	auto new_item = raceutils::random_pick(item_list, rand_gen.GetNext());
 	if (new_item && !database->IsValidHeadPart(new_item)) {
 		// TODO: Exclude invalid head parts?
 		logger::warn("  {:x} is an invalid head part!", new_item->formID);

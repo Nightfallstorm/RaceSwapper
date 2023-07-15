@@ -1,22 +1,11 @@
 #include "configuration/Configuration.h"
-#include "swap/NPCAppearance.h"
 #include "Hooks.h"
-#include "swap/RaceSwapDatabase.h"
-
-struct CEHelper
-{
-	// TODO: Remove when done debugging
-	std::uint64_t CESignature = 0x123456789ABCDEF;
-	RE::TESRace* KhajiitRace = nullptr;
-	RE::TESRace* CowRace = nullptr;
-} cehelper;
 
 void MessageInterface(SKSE::MessagingInterface::Message* msg) {
 	switch (msg->type) {
 	case SKSE::MessagingInterface::kDataLoaded:
+		// TODO: Add console commands to revert appearance
 		ConfigurationDatabase::GetSingleton()->Initialize();
-		cehelper.KhajiitRace = RE::TESForm::LookupByID(constants::KhajiitRace)->As<RE::TESRace>();
-		cehelper.CowRace = RE::TESForm::LookupByID(constants::CowRace)->As<RE::TESRace>();
 		hook::InstallHooks();
 		break;
 	}

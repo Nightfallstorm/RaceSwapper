@@ -39,18 +39,18 @@ void NPCSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESNPC* a_otherNPC) 
 		a_data->tintLayers->clear();
 	}
 
-	a_data->tintLayers = CopyTintLayers(a_otherNPC->tintLayers);
+	a_data->tintLayers = utils::CopyTintLayers(a_otherNPC->tintLayers);
 
 	a_data->faceNPC = a_otherNPC->faceNPC ? a_otherNPC->faceNPC : a_otherNPC;
 
-	a_data->headRelatedData = CopyHeadRelatedData(a_data->faceNPC->headRelatedData);
+	a_data->headRelatedData = utils::CopyHeadRelatedData(a_data->faceNPC->headRelatedData);
 
 	a_data->numHeadParts = a_otherNPC->numHeadParts;
-	a_data->headParts = CopyHeadParts(a_data->faceNPC->headParts, a_data->faceNPC->numHeadParts);
+	a_data->headParts = utils::CopyHeadParts(a_data->faceNPC->headParts, a_data->faceNPC->numHeadParts);
 
 	// TODO: Check for default face struct here?
 	
-	a_data->faceData = DeepCopyFaceData(a_data->faceNPC->faceData);
+	a_data->faceData = utils::DeepCopyFaceData(a_data->faceNPC->faceData);
 
 	if (otherNPCAppearance && otherNPCSwapped) {
 		otherNPCSwapped = true;
