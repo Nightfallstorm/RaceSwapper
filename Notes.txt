@@ -1,0 +1,17 @@
+Goals:
+
+- Configurable like SPID. Users can configure what NPC, or sets of NPC of specific race/faction/etc. will get swapped to (Ex: All nord NPCs get swapped to X) similar to how SPID filters NPCs
+
+- Configurable what kind of swap to make. An NPC can swap to look like another NPC, another race, etc. like the following in order of priority (AKA first entry applies first, second entry applies after first, etc.):
+    NPC, Race, Armor race, Default Outfit
+    If two or more entries give NPCs conflicting swaps (Ex: M'aik swaps to Sven, AND swaps to Nazeem), priority will determine which one gets used. If same priority, whichever was read first.
+    If two entries give same NPC different swaps (M'aik has one entry for Sven, another entry for NORD race), then it's treated as one single entry that has NPC swap and RACE swap, so order/priority doesn't matter
+
+- No persistant NPC changes. User should be able to uninstall the mod, and all NPCs look normal
+
+- Debug Toggling. Optional debug papyrus functions to disable/enable a new appearance so users can see the difference
+
+
+Incompatabilities:
+ - SynthEBD NPC Skin and Body Customizer (https://www.nexusmods.com/skyrimspecialedition/mods/88242?tab=description)
+       Most likely swaps skin and possibly other NPC members AFTER raceswapper swaps, breaking race swapping

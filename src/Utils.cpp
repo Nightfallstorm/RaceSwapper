@@ -99,5 +99,29 @@ namespace utils
 		}
 		return newFaceData;
 	}
+
+	std::vector<std::string> split_string(std::string& a_string, char a_delimiter)
+	{
+		std::vector<std::string> result;
+		std::stringstream ss(a_string);
+		std::string item;
+
+		while (getline(ss, item, a_delimiter)) {
+			result.push_back(item);
+		}
+
+		return result;
+	}
+
+	std::string GetFormEditorID(const RE::TESForm* a_form)
+	{
+		static auto tweaks = GetModuleHandle(L"po3_Tweaks");
+		typedef std::string(WINAPI * _GetFormEditorID)(RE::FormID);
+		static auto func = reinterpret_cast<_GetFormEditorID>(GetProcAddress(tweaks, "GetFormEditorID"));
+		if (func) {
+			return func(a_form->formID);
+		}
+		return "";
+	};
 }
 

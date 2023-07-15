@@ -33,9 +33,11 @@ void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRac
 	if (a_data->baseNPC->race->IsChildRace() != a_otherRace->IsChildRace()) {
 		// Don't allow child NPCs swapping to non-child races and vice versa
 		logger::warn("Attempting to swap {:x} to race {} {:x}. Childen cannot be swapped to non-child races and vice versa!",
-			a_data->baseNPC->formID, a_otherRace->GetFormEditorID(), a_otherRace->formID);
+			a_data->baseNPC->formID, utils::GetFormEditorID(a_otherRace), a_otherRace->formID);
 		return;
 	}
+
+	logger::info("Swapping {:x} to {} {:x}", a_data->baseNPC->formID, utils::GetFormEditorID(a_otherRace), a_otherRace->formID);
 
 	auto originalRace = a_data->race;
 	a_data->race = a_otherRace;
@@ -58,11 +60,11 @@ void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRac
 		logger::debug("{:x} Swapping {} {} {:x} to {} {} {:x}", 
 			a_data->baseNPC->formID,
 			GetHeadPartTypeAsName(oldPart->type.get()),
-			database->GetFormEditorID(oldPart->formID),
+			utils::GetFormEditorID(oldPart),
 			oldPart->formID, 
 
-			GetHeadPartTypeAsName(newPart->type.get()), 
-			database->GetFormEditorID(newPart->formID),
+			GetHeadPartTypeAsName(newPart->type.get()),
+			utils::GetFormEditorID(newPart),
 			newPart->formID);
 
 		a_data->headParts[i] = newPart;
@@ -96,11 +98,11 @@ void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRac
 			logger::debug("{:x} {} {} {:x} replaced with existing extra {} {} {:x}",
 				a_data->baseNPC->formID,
 				GetHeadPartTypeAsName(part->type.get()),
-				database->GetFormEditorID(part->formID),
+				utils::GetFormEditorID(part),
 				part->formID,
 
 				GetHeadPartTypeAsName(replacingExtra->type.get()),
-				database->GetFormEditorID(replacingExtra->formID),
+				utils::GetFormEditorID(replacingExtra),
 				replacingExtra->formID);
 			a_data->headParts[i] = replacingExtra;
 		}
@@ -252,7 +254,7 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 		
 		logger::info("  NPC has no skin tone. Skin tone assigned to RGB:{}|{}|{}", skin_tint->tintColor.red, skin_tint->tintColor.green, skin_tint->tintColor.blue);
 	} else if (!skintone_tintasset) {
-		logger::info("  NPC has no skin tone. And Race: {} Sex: {} has no default skin tone.", a_data->race->GetFormEditorID(), a_data->isFemale);
+		logger::info("  NPC has no skin tone. And Race: {} Sex: {} has no default skin tone.", utils::GetFormEditorID(a_data->race), a_data->isFemale);
 		return false;
 	}
 

@@ -11,5 +11,9 @@ namespace utils
 	RE::BGSHeadPart** CopyHeadParts(RE::BGSHeadPart** a_parts, std::uint32_t a_numHeadParts);
 
 	RE::TESNPC::FaceData* DeepCopyFaceData(RE::TESNPC::FaceData* a_faceData);
+
+	std::vector<std::string> split_string(std::string& a_string, char a_delimiter);
+
+	std::string GetFormEditorID(const RE::TESForm* a_form);
 }
 

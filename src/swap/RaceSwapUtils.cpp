@@ -9,7 +9,7 @@ namespace raceutils
 		std::uint32_t types = 0;
 		std::uint32_t characteristics = 0;
 		std::uint32_t colors = 0;
-		std::string str(hdpt->GetFormEditorID());
+		std::string str(utils::GetFormEditorID(hdpt));
 
 		if (str == "") {
 			logger::info("{:x} has no editor ID!");

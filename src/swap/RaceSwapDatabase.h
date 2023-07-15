@@ -133,8 +133,6 @@ namespace raceswap
 
 		std::vector<RE::TESRace*> valid_races;
 
-		std::unordered_map<RE::FormID, std::string_view> formsToEditorIDs;
-
 		std::unordered_map<RE::SEX, std::unordered_map<HeadPartType, std::unordered_map<RE::TESRace*, std::vector<RE::BGSHeadPart*>>>> valid_type_race_headpart_map;
 
 		std::unordered_map<RE::SEX, std::unordered_map<HeadPartType, std::unordered_map<RE::TESRace*, std::vector<HDPTData*>>>> valid_type_race_HDPTdata_map;
@@ -212,18 +210,9 @@ namespace raceswap
 			return RE::TESForm::LookupByID(0x19)->As<RE::TESRace>();
 		}
 
-		const char* GetFormEditorID(RE::FormID formid) {
-			auto iter = formsToEditorIDs.find(formid);
-			if (iter != formsToEditorIDs.end()) {
-				return iter->second.data();
-			}
-			const char* empty_char = std::string_view("").data();
-			return empty_char;
-		}
-
 		bool IsValidHeadPart(RE::BGSHeadPart* hdpt)
 		{
-			if (hdpt->extraParts.empty() && hdpt->model.empty() && std::string(hdpt->GetFormEditorID()).find("No") == std::string::npos) {
+			if (hdpt->extraParts.empty() && hdpt->model.empty() && utils::GetFormEditorID(hdpt).find("No") == std::string::npos) {
 				return false;
 			}
 
@@ -242,7 +231,7 @@ namespace raceswap
 
 			if (!RE::BSResourceNiBinaryStream(modelFilePath).good() && !hdpt->model.empty()) {
 				// model filename does not exist in BSA archive or as loose file
-				logger::debug("{} is not a valid resource!", modelFilePath);
+				logger::debug("{} is not a valid resource for {:x}!", modelFilePath, hdpt->formID);
 				return false;
 			}
 
@@ -265,16 +254,6 @@ namespace raceswap
 		}
 
 		void _initialize() {
-			//To do
-			auto [editorIDMap, editorIDLock] = RE::TESForm::GetAllFormsByEditorID();
-
-			editorIDLock.get().LockForRead();
-			for (auto const& [editorID, form] : *editorIDMap) {
-				/*if (form->Is(RE::FormType::NPC))*/
-				formsToEditorIDs[form->formID] = editorID;
-			}
-			editorIDLock.get().UnlockForRead();
-
 			auto const& [map, lock] = RE::TESForm::GetAllForms();
 			
 			lock.get().LockForRead();
@@ -344,7 +323,7 @@ namespace raceswap
 				}
 				
 				if (!this->default_skintint_for_each_race[RE::SEX::kMale][race]) {
-					logger::info("  Race: {} has no skin tone tint layer for male.", race->GetFormEditorID());
+					logger::info("  Race: {} has no skin tone tint layer for male.", utils::GetFormEditorID(race));
 				}
 
 				for (auto race_tint : *race_female_tints) {
@@ -355,7 +334,7 @@ namespace raceswap
 				}
 
 				if (!this->default_skintint_for_each_race[RE::SEX::kFemale][race]) {
-					logger::info("  Race: {} has no skin tone tint layer for female.", race->GetFormEditorID());
+					logger::info("  Race: {} has no skin tone tint layer for female.", utils::GetFormEditorID(race));
 				}
 			}
 			lock.get().UnlockForRead();

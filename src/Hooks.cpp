@@ -1,6 +1,7 @@
 #pragma once
 #include "Hooks.h"
 #include "swap/NPCAppearance.h"
+#include "Utils.h"
 
 struct GetTESModelHook
 {
@@ -202,8 +203,8 @@ struct LoadTESObjectARMOHook
 		auto NPC = (*a_anim)->actorRef.get().get()->As<RE::Actor>()->GetActorBase();
 
 		logger::debug("LoadTESObjectARMOHook: Loading {} {:x} for NPC {} {:x}",
-			a_armor->GetFormEditorID(), a_armor->formID,
-			NPC->GetFormEditorID(), NPC->formID);
+			utils::GetFormEditorID(a_armor), a_armor->formID,
+			utils::GetFormEditorID(NPC), NPC->formID);
 
 
 		NPCAppearance* appearance = NPCAppearance::GetNPCAppearance(NPC);
@@ -261,8 +262,8 @@ struct LoadSkinHook
 			logger::debug("LoadSkinHook: Swap occurred!");
 		}
 		logger::debug("LoadSkinHook: Loading {} {:x} for NPC {} {:x}",
-			skin->GetFormEditorID(), skin->formID,
-			NPC->GetFormEditorID(), NPC->formID);
+			utils::GetFormEditorID(skin), skin->formID,
+			utils::GetFormEditorID(NPC), NPC->formID);
 		return func(skin, race, a_anim, isFemale);
 	}
 

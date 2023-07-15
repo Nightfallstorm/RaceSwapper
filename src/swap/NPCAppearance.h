@@ -80,7 +80,7 @@ private:
 
 	void dtor();
 
-	static inline std::mutex appearanceMapLock;
+	static inline std::recursive_mutex appearanceMapLock;
 
 	static inline std::map<RE::FormID, NPCAppearance*> appearanceMap;
 };
