@@ -7,20 +7,20 @@ public:
 	struct EntryData
 	{
 		// Matching Data
-		RE::TESNPC* npcMatch;
-		RE::TESRace* raceMatch;
-		RE::TESFaction* factionMatch;
-		std::uint32_t probability; // 0-100
+		RE::TESNPC* npcMatch = nullptr;
+		RE::TESRace* raceMatch = nullptr;
+		RE::TESFaction* factionMatch = nullptr;
+		std::uint32_t probability = 100; // 0-100
 
 		// Appearance Data
-		RE::TESNPC* otherNPC;
-		RE::TESRace* otherRace;
-		std::uint32_t priority;
+		RE::TESNPC* otherNPC = nullptr;
+		RE::TESRace* otherRace = nullptr;
+		std::uint32_t weight = 10; // 0-100
 	};
 
-	EntryData entryData = { 0 };
+	EntryData entryData;
 
 	bool MatchesNPC(RE::TESNPC* a_npc);
 
-	ConfigurationEntry(std::string line);
+	static ConfigurationEntry* ConstructNewEntry(std::string line);
 };

@@ -262,8 +262,8 @@ struct LoadSkinHook
 			logger::debug("LoadSkinHook: Swap occurred!");
 		}
 		logger::debug("LoadSkinHook: Loading {} {:x} for NPC {} {:x}",
-			utils::GetFormEditorID(skin), skin->formID,
-			utils::GetFormEditorID(NPC), NPC->formID);
+			utils::GetFormEditorID(skin).c_str(), skin->formID,
+			utils::GetFormEditorID(NPC).c_str(), NPC->formID);
 		return func(skin, race, a_anim, isFemale);
 	}
 
@@ -361,7 +361,6 @@ struct CopyFromTemplate
 	}
 
 	static void ProcessBaseNPC(RE::TESNPC* NPC) {
-		logger::info("Handling base NPC: {} {:x}", NPC->GetFullName(), NPC->formID);
 		auto NPCAppearance = NPCAppearance::GetOrCreateNPCAppearance(NPC);
 		if (NPCAppearance) {
 			NPCAppearance->ApplyNewAppearance(false);

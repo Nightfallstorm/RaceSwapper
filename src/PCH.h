@@ -37,6 +37,7 @@ namespace constants
 	inline RE::FormID OrcRace = 0x13747;
 	inline RE::FormID CowRace = 0x4E785;
 	inline RE::FormID DragonRace = 0x12E82;
+	inline RE::FormID BretonRace = 0x13741;
 }
 
 namespace stl

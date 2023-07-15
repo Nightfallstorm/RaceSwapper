@@ -37,10 +37,16 @@ void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRac
 		return;
 	}
 
-	logger::info("Swapping {:x} to {} {:x}", a_data->baseNPC->formID, utils::GetFormEditorID(a_otherRace), a_otherRace->formID);
+	logger::info("Swapping {} {:x} to {} {:x}", 
+		utils::GetFormEditorID(a_data->baseNPC).c_str(),
+		a_data->baseNPC->formID, 
+		utils::GetFormEditorID(a_otherRace),
+		a_otherRace->formID
+	);
 
 	auto originalRace = a_data->race;
 	a_data->race = a_otherRace;
+	a_data->faceNPC = a_data->baseNPC; // Prevents cases where face NPC is configured differently
 	a_data->skeletonModel = &a_otherRace->skeletonModels[a_data->isFemale];
 	a_data->isBeastRace = a_otherRace->HasKeywordID(constants::Keyword_IsBeastRace);
 	a_data->skin = a_otherRace->skin;
@@ -97,11 +103,11 @@ void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRac
 		if (replacingExtra) {
 			logger::debug("{:x} {} {} {:x} replaced with existing extra {} {} {:x}",
 				a_data->baseNPC->formID,
-				GetHeadPartTypeAsName(part->type.get()),
+				GetHeadPartTypeAsName(part->type.get()).c_str(),
 				utils::GetFormEditorID(part),
 				part->formID,
 
-				GetHeadPartTypeAsName(replacingExtra->type.get()),
+				GetHeadPartTypeAsName(replacingExtra->type.get()).c_str(),
 				utils::GetFormEditorID(replacingExtra),
 				replacingExtra->formID);
 			a_data->headParts[i] = replacingExtra;

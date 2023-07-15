@@ -1,5 +1,9 @@
+
+
 namespace utils
 {
+	using _GetFormEditorID = const char* (*)(std::uint32_t);
+
 	std::string UniqueStringFromForm(RE::TESForm* a_form_seed);
 
 	size_t HashForm(RE::TESForm* a_form_seed);

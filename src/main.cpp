@@ -1,13 +1,25 @@
 #include "configuration/Configuration.h"
 #include "Hooks.h"
+#include "Utils.h"
 
 void MessageInterface(SKSE::MessagingInterface::Message* msg) {
 	switch (msg->type) {
-	case SKSE::MessagingInterface::kDataLoaded:
-		// TODO: Add console commands to revert appearance
-		ConfigurationDatabase::GetSingleton()->Initialize();
-		hook::InstallHooks();
-		break;
+		case SKSE::MessagingInterface::kPostLoad:
+		{
+			logger::info("Dependencies check...");
+			if (!GetModuleHandle(L"po3_Tweaks")) {
+				logger::critical("po3_Tweaks not detected, mod will not function right!");
+			}
+			logger::info("Dependencies check complete!");
+			break;
+		}
+		case SKSE::MessagingInterface::kDataLoaded:
+		{
+			// TODO: Add console commands to revert appearance
+			ConfigurationDatabase::GetSingleton()->Initialize();
+			hook::InstallHooks();
+			break;
+		}
 	}
 }
 

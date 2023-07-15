@@ -124,8 +124,8 @@ void NPCAppearance::CopyFaceData(NPCData* a_data)
 }
 
 void NPCAppearance::SetupNewAppearance() {
-	RaceSwap::applySwap(&alteredNPCData, config->otherRace.first);
-	NPCSwap::applySwap(&alteredNPCData, config->otherNPC.first);
+	RaceSwap::applySwap(&alteredNPCData, config->otherRace);
+	NPCSwap::applySwap(&alteredNPCData, config->otherNPC);
 	// TODO add more swaps here
 }
 
@@ -194,10 +194,12 @@ void NPCAppearance::EraseNPCAppearance(RE::TESNPC* a_npc) {
 
 void NPCAppearance::EraseNPCAppearance(RE::FormID a_formID)
 {
+	appearanceMapLock.lock();
 	if (appearanceMap.contains(a_formID)) {
 		appearanceMap.at(a_formID)->dtor();
 		appearanceMap.erase(a_formID);
 	}
+	appearanceMapLock.unlock();
 };
 
 // Native Papyrus function version of enable
