@@ -89,21 +89,17 @@ struct GetBodyPartDataHook
 
 struct GetBaseMoveTypes
 {
-	static RE::BGSBodyPartData* thunk(RE::TESRace* a_actor)
+	static RE::BGSMovementType* thunk(RE::TESRace* a_actor, std::uint64_t a_type)
 	{
 		// a_npc WAS the race, but we kept it as Actor for our purposes >:)
 		auto actor = reinterpret_cast<RE::Actor*>(a_actor);
 
 		auto appearance = NPCAppearance::GetNPCAppearance(actor->GetActorBase());
 		if (appearance && appearance->isNPCSwapped) {
-			return appearance->alteredNPCData.bodyPartData;
+			return appearance->alteredNPCData.race->baseMoveTypes[a_type];
 		}
 
-		if (!actor->GetActorRuntimeData().race) {
-			return nullptr;
-		}
-
-		return func(actor->GetActorRuntimeData().race);
+		return func(actor->GetActorRuntimeData().race, a_type);
 	}
 
 	static inline REL::Relocation<decltype(thunk)> func;
@@ -111,16 +107,8 @@ struct GetBaseMoveTypes
 	// Install our hook at the specified address
 	static inline void Install()
 	{
-		// TODO: AE/VR
-		REL::Relocation<std::uintptr_t> load3DTarget{ RELOCATION_ID(36198, 0), REL::VariantOffset(0x5A, 0x0, 0x0) };
-
-		// Remove call to replace RCX (actor) with actor's race. This lets our hook have access to the actor data
-		REL::safe_fill(load3DTarget.address() - 0x11, REL::NOP, 0x7);
-		stl::write_thunk_call<GetBodyPartDataHook>(load3DTarget.address());
-
-		// TODO: May need to hook other areas?
-		logger::info("GetBodyPartData hooked at address {:x}", load3DTarget.address());
-		logger::info("GetBodyPartData hooked at offset {:x}", load3DTarget.offset());
+		// TODO: Hook usages of 140386D90 (1.5.97) for race swapping
+		// Mainly for swaps to creatures
 	}
 };
 
@@ -508,6 +496,7 @@ void hook::InstallHooks()
 	GetFaceRelatedDataHook::Install();
 	GetFaceRelatedDataHook2::Install();
 	GetBodyPartDataHook::Install();
+	GetBaseMoveTypes::Install();
 	LoadTESObjectARMOHook::Install();
 	LoadSkinHook::Install();
 	PopulateGraphHook::Install();

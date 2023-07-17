@@ -18,6 +18,7 @@ bool NPCAppearance::ApplyNewAppearance(bool updateLoadedActors)
 
 	ApplyAppearance(&alteredNPCData);
 	UpdateLoadedActors(npc);
+	isNPCSwapped = true;
 	return true;
 }
 
@@ -28,13 +29,12 @@ bool NPCAppearance::RevertNewAppearance(bool updateLoadedActors) {
 
 	ApplyAppearance(&originalNPCData);
 	UpdateLoadedActors(npc);
+	isNPCSwapped = false;
 	return true;
 }
 
 void NPCAppearance::ApplyAppearance(NPCData* a_data)
 {
-	isNPCSwapped = true;
-
 	if (a_data->isBeastRace && !npc->HasKeywordID(constants::Keyword_IsBeastRace)) {
 		npc->AddKeyword(RE::TESForm::LookupByID(constants::Keyword_IsBeastRace)->As<RE::BGSKeyword>());
 	} else {

@@ -108,7 +108,6 @@ bool ConstructSwapData(std::string line, ConfigurationEntry::EntryData* a_data)
 
 ConfigurationEntry* ConfigurationEntry::ConstructNewEntry(std::string line)
 {
-	logger::info("Parsing: {}", line);
 	auto parsingLine = std::string(line);
 	ConfigurationEntry::EntryData entryData{ 0 };
 
@@ -129,6 +128,7 @@ ConfigurationEntry* ConfigurationEntry::ConstructNewEntry(std::string line)
 		// Line is invalid, or was just a comment. Either way, don't parse it
 		return nullptr;
 	}
+	logger::info("Parsing: {}", line);
 
 	auto swapIndex = parsingLine.find("swap=");
 
