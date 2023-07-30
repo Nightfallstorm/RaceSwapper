@@ -149,8 +149,8 @@ static bool IsNPCValid(RE::TESNPC* a_npc)
 {
 	return a_npc && a_npc->race &&
 	       !a_npc->IsPlayer() &&
-	       !a_npc->IsPreset() &&
-	       a_npc->race->HasKeywordID(constants::Keyword_ActorTypeNPC);
+	       !a_npc->IsPreset() /* &&
+	       a_npc->race->HasKeywordID(constants::Keyword_ActorTypeNPC) */;
 }
 
 // Gets or create a new NPC appearance. Will be null if NPC has no altered appearance to take

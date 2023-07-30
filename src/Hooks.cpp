@@ -74,8 +74,7 @@ struct GetBodyPartDataHook
 	// Install our hook at the specified address
 	static inline void Install()
 	{
-		// TODO: AE/VR
-		REL::Relocation<std::uintptr_t> load3DTarget{ RELOCATION_ID(36198, 0), REL::VariantOffset(0x5A, 0x0, 0x0) };
+		REL::Relocation<std::uintptr_t> load3DTarget{ RELOCATION_ID(36198, 37177), REL::VariantOffset(0x5A, 0x57, 0x5A) };
 		
 		// Remove call to replace RCX (actor) with actor's race. This lets our hook have access to the actor data
 		REL::safe_fill(load3DTarget.address() - 0x11, REL::NOP, 0x7);
@@ -181,9 +180,91 @@ struct GetFaceRelatedDataHook2
 	}
 };
 
+struct AttachTESObjectARMOHook
+{
+	using BipedObjectSlot = stl::enumeration<RE::BGSBipedObjectForm::BipedObjectSlot, std::uint32_t>;
+	// Overwrite TESObjectARMO::AttachToBiped functionality. This hook will let us load the armor with
+	// the closest valid race
+	static void AttachToBiped(RE::TESObjectARMO* a_armor, RE::TESRace* a_race, RE::BipedAnim** a_anim, bool isFemale)
+	{
+		RE::TESRace* race = utils::GetValidRaceForArmorRecursive(a_armor, a_race);
+		if (!race) {
+			// Race can't load anything from this armor
+			logger::warn("Race {} {:x} cannot load armor {} {:x}",
+				utils::GetFormEditorID(a_race), a_race->formID,
+				utils::GetFormEditorID(a_armor), a_armor->formID);
+			return;
+		}
+		if (armorSlotMap.contains(a_armor)) {
+			a_armor->bipedModelData.bipedObjectSlots = armorSlotMap.at(a_armor);
+		} else {
+			armorSlotMap.emplace(a_armor, a_armor->bipedModelData.bipedObjectSlots);
+		}
+
+		auto origSlots = a_armor->bipedModelData.bipedObjectSlots;
+		a_armor->bipedModelData.bipedObjectSlots = GetCorrectBipedSlots(a_armor, race);
+
+		logger::debug("Loading {:x} with new slots {:x}, old slots {:x}",
+			a_armor->formID,
+			a_armor->bipedModelData.bipedObjectSlots.underlying(),
+			origSlots.underlying());
+
+		for (auto addon : a_armor->armorAddons) {
+			if (addon->race == race || utils::is_amongst(addon->additionalRaces, race)) {
+				AddToBiped(addon, a_armor, a_anim, isFemale);
+			}
+		}
+
+		// TODO: Revert somehow? For now, use a cache to store the slots
+		// This has the bug of player inventory potentially showing inaccurate icon for armor
+		//a_armor->bipedModelData.bipedObjectSlots = origSlots;
+	}
+
+	// Take the armor's biped slots, and remove the slots that no valid addon for the race supports
+	static stl::enumeration<RE::BGSBipedObjectForm::BipedObjectSlot, std::uint32_t> GetCorrectBipedSlots(RE::TESObjectARMO* a_armor, RE::TESRace* a_race)
+	{
+		BipedObjectSlot addonSlots = RE::BGSBipedObjectForm::BipedObjectSlot::kNone;
+		BipedObjectSlot armorSlots = a_armor->bipedModelData.bipedObjectSlots;
+		for (auto addon : a_armor->armorAddons) {
+			if (addon->race == a_race || utils::is_amongst(addon->additionalRaces, a_race)) {
+				addonSlots |= addon->bipedModelData.bipedObjectSlots;
+			}
+		}
+
+		return armorSlots & addonSlots;
+	}
+
+	static void AddToBiped(RE::TESObjectARMA* a_addon, RE::TESObjectARMO* a_armor, RE::BipedAnim** a_anim, bool isFemale) {
+		addToBiped(a_addon, a_armor, a_anim, isFemale);
+	}
+
+	// TESObjectARMO::AddToBiped(...)
+	// TODO: AE/VR
+	static inline REL::Relocation<decltype(AddToBiped)> addToBiped;
+
+	static inline std::map<RE::TESObjectARMO*, BipedObjectSlot> armorSlotMap;
+
+	// Install our hook at the specified address
+	static inline void Install()
+	{
+		// TODO: AE/VR
+		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(17392, 0) };
+		REL::safe_fill(target.address(), REL::NOP, 0x91);
+
+		// TODO: AE/VR
+		addToBiped = { RELOCATION_ID(17361, 0) };
+
+		auto& trampoline = SKSE::GetTrampoline();
+		SKSE::AllocTrampoline(14);
+		trampoline.write_branch<5>(target.address(), AttachToBiped);
+
+		logger::info("AttachTESObjectARMOHook hooked at address {:x}", target.address());
+		logger::info("AttachTESObjectARMOHook hooked at offset {:x}", target.offset());
+	}
+};
+
 struct LoadTESObjectARMOHook
 {
-	// Based off 1.5.97 TESObjectARMA::ContainsRace_140226D70(v9[i], a_race)
 	// We swap the race being passed to be what the NPC's new appearance is
 	static std::uint64_t thunk(RE::TESObjectARMO* a_armor, RE::TESRace* a_race, RE::BipedAnim** a_anim, bool isFemale)
 	{
@@ -193,7 +274,6 @@ struct LoadTESObjectARMOHook
 		logger::debug("LoadTESObjectARMOHook: Loading {} {:x} for NPC {} {:x}",
 			utils::GetFormEditorID(a_armor), a_armor->formID,
 			utils::GetFormEditorID(NPC), NPC->formID);
-
 
 		NPCAppearance* appearance = NPCAppearance::GetNPCAppearance(NPC);
 		if (appearance != nullptr && appearance->isNPCSwapped) {
@@ -261,12 +341,6 @@ struct LoadSkinHook
 		logger::debug("Loading {:x} appearance from LoadSkinHook hook", a_npc->formID);
 
 		auto appearance = NPCAppearance::GetOrCreateNPCAppearance(a_npc);
-		auto faceAppearance = NPCAppearance::GetOrCreateNPCAppearance(a_npc->faceNPC);
-
-		// Apply face NPC swap first if present, for template NPC
-		if (faceAppearance && !faceAppearance->isNPCSwapped) {
-			faceAppearance->ApplyNewAppearance(false);
-		}
 
 		if (appearance && !appearance->isNPCSwapped) {
 			appearance->ApplyNewAppearance(false);
@@ -281,8 +355,8 @@ struct LoadSkinHook
 	// Install our hook at the specified address
 	static inline void Install()
 	{
-		// TODO: AE/VR
-		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(15499, 0), REL::VariantOffset(0x173, 0x0, 0x0) };
+		// TODO: Give PR to Alan for VR offset
+		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(15499, 15676), REL::VariantOffset(0x173, 0x359, 0x173) };
 		stl::write_thunk_call<LoadSkinHook>(target.address());
 
 		logger::info("LoadSkinHook hooked at address {:x}", target.address());
@@ -498,6 +572,7 @@ void hook::InstallHooks()
 	GetBodyPartDataHook::Install();
 	GetBaseMoveTypes::Install();
 	LoadTESObjectARMOHook::Install();
+	AttachTESObjectARMOHook::Install();
 	LoadSkinHook::Install();
 	PopulateGraphHook::Install();
 	RE::ScriptEventSourceHolder::GetSingleton()->AddEventSink(new HandleFormDelete());

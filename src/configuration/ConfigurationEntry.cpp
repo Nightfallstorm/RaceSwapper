@@ -160,6 +160,8 @@ bool ConfigurationEntry::MatchesNPC(RE::TESNPC* a_npc) {
 	isMatch = isMatch || (entryData.factionMatch != nullptr && a_npc->IsInFaction(entryData.factionMatch));
 
 	if (isMatch) {
+		// TODO: Hash should include the entry itself to prevent all entries with the same weight
+		// matching the same exact NPCs
 		srand((int) utils::HashForm(a_npc));
 		isMatch = ((std::uint32_t) rand() % 100) < entryData.probability;
 	}

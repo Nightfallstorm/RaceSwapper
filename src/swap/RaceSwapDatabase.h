@@ -34,6 +34,8 @@ namespace raceswap
 			std::pair("Beard", Beard),
 			std::pair("Hair", Hair),
 			std::pair("HairLine", HairLine),
+			std::pair("Hairline", HairLine),
+			std::pair("Eyes", Eyes),
 			std::pair("Scar", Scar),
 			std::pair("Brow", Brow),
 			std::pair("Earring", Earring),
@@ -62,22 +64,25 @@ namespace raceswap
 			Narrow = 1 << 15,
 		};
 
-		static inline std::map<std::string, HDPTCharacteristics> HDPTCharMap
-		{
+		static inline std::map<std::string, HDPTCharacteristics> HDPTCharMap{
 			std::pair("Blind", Blind),
 			std::pair("Left", Left),
 			std::pair("Right", Right),
 			std::pair("NoHair", NoHair),
+			std::pair("Nohair", NoHair),
 			std::pair("Demon", Demon),
 			std::pair("Vampire", Vampire),
 			std::pair("Shaved", Shaved),
 			std::pair("NoScar", NoScar),
+			std::pair("Noscar", NoScar),
 			std::pair("Gash", Gash),
 			std::pair("NoGash", NoGash),
+			std::pair("Nogash", NoGash),
 			std::pair("Small", Small),
 			std::pair("Medium", Medium),
 			std::pair("Long", Long),
 			std::pair("NoBeard", NoBeard),
+			std::pair("Nobeard", NoBeard),
 			std::pair("Narrow", Narrow),
 		};
 
@@ -122,8 +127,26 @@ namespace raceswap
 			std::pair("Olive", Olive),
 		};
 
+		enum SkinTextureCharacteristics : std::uint32_t
+		{
+			Complexion = 1 << 0,
+			Rough = 1 << 1,
+			Freckles = 1 << 2,
+			Age = 1 << 4,
+		};
+
+		static inline std::map<std::string, SkinTextureCharacteristics> SkinCharMap{
+			std::pair("Complexion", Complexion),
+			std::pair("Rough", Rough),
+			std::pair("Freckles", Freckles),
+			std::pair("Frekles", Freckles),
+			std::pair("Age", Age),
+		};
+
 		// HeadPartType , Characteristics, Color
 		using HDPTData = std::tuple<std::uint32_t, std::uint32_t, std::uint32_t>;
+
+		using SkinTextureData = std::uint32_t;
 		
 		using _likelihood_t = uint8_t;
 
@@ -154,6 +177,10 @@ namespace raceswap
 
 		HDPTData* FindOrCalculateHDPTData(RE::BGSHeadPart* hdpt)
 		{
+			if (hdpt == nullptr) {
+				logger::warn("Null headpart being parsed as HDPT");
+				return nullptr;
+			}
 			auto iter = _hdptd_cache.find(hdpt);
 			if (iter == _hdptd_cache.end()) {
 				HDPTData* hdptd_ptr = new HDPTData(raceutils::ExtractKeywords(hdpt));
@@ -166,9 +193,9 @@ namespace raceswap
 
 		inline std::vector<RE::BGSHeadPart*> GetHeadParts(HeadPartType type, RE::SEX sex, RE::TESRace* race)
 		{
-			if (raceutils::is_amongst(valid_type_race_headpart_map, sex)) {
-				if (raceutils::is_amongst(valid_type_race_headpart_map[sex], type)) {
-					if (raceutils::is_amongst(valid_type_race_headpart_map[sex][type], race)) {
+			if (utils::is_amongst(valid_type_race_headpart_map, sex)) {
+				if (utils::is_amongst(valid_type_race_headpart_map[sex], type)) {
+					if (utils::is_amongst(valid_type_race_headpart_map[sex][type], race)) {
 						return valid_type_race_headpart_map[sex][type][race];
 					}
 				}
@@ -178,9 +205,9 @@ namespace raceswap
 
 		inline std::vector<HDPTData*> GetHDPTData(HeadPartType type, RE::SEX sex, RE::TESRace* race)
 		{
-			if (raceutils::is_amongst(valid_type_race_HDPTdata_map, sex)) {
-				if (raceutils::is_amongst(valid_type_race_HDPTdata_map[sex], type)) {
-					if (raceutils::is_amongst(valid_type_race_HDPTdata_map[sex][type], race)) {
+			if (utils::is_amongst(valid_type_race_HDPTdata_map, sex)) {
+				if (utils::is_amongst(valid_type_race_HDPTdata_map[sex], type)) {
+					if (utils::is_amongst(valid_type_race_HDPTdata_map[sex][type], race)) {
 						return valid_type_race_HDPTdata_map[sex][type][race];
 					}
 				}
@@ -188,18 +215,27 @@ namespace raceswap
 			return std::vector<HDPTData*>();
 		}
 
-		inline std::vector<RE::BGSHeadPart*> GetMatchedResults(HeadPartType type, RE::SEX sex, RE::TESRace* race, RE::BGSHeadPart* hdpt) {
-			auto hdpts = GetHeadParts(type, sex, race);
-			auto hdptd = GetHDPTData(type, sex, race);
-			auto dst_hdptd = FindOrCalculateHDPTData(hdpt);
-			return raceutils::MatchHDPTData(*dst_hdptd, hdpts, hdptd);
+		inline std::vector<RE::BGSHeadPart*> GetMatchedHeadPartResults(HeadPartType type, RE::SEX sex, RE::TESRace* race, RE::BGSHeadPart* hdpt) {
+			return GetMatchedHeadPartResults(type, sex, race, *FindOrCalculateHDPTData(hdpt));
 		}
 
-		inline std::vector<RE::BGSHeadPart*> GetMatchedResults(HeadPartType type, RE::SEX sex, RE::TESRace* race, HDPTData hdptdata)
+		inline std::vector<RE::BGSHeadPart*> GetMatchedHeadPartResults(HeadPartType type, RE::SEX sex, RE::TESRace* race, HDPTData hdpt)
 		{
 			auto hdpts = GetHeadParts(type, sex, race);
 			auto hdptd = GetHDPTData(type, sex, race);
-			return raceutils::MatchHDPTData(hdptdata, hdpts, hdptd);
+			return raceutils::MatchHDPTData(hdpt, hdpts, hdptd);
+		}
+
+		inline std::vector<RE::BGSTextureSet*> GetMatchedSkinTextureResults(RE::SEX sex, RE::TESRace* race, RE::BGSTextureSet* skindata)
+		{
+			std::vector<RE::BGSTextureSet*> skinTextures;
+			std::vector<SkinTextureData> skinTexturesChars;
+			for (auto skinTexture : *race->faceRelatedData[sex]->faceDetailsTextureSets) {
+				skinTextures.push_back(skinTexture);
+				skinTexturesChars.push_back(raceutils::ExtractKeywords(skinTexture));
+			}
+			auto dstTextureData = raceutils::ExtractKeywords(skindata);
+			return raceutils::MatchSkinTextureData(dstTextureData, skinTextures, skinTexturesChars);
 		}
 
 		RE::TESRace::FaceRelatedData::TintAsset* GetRaceSkinTint(RE::SEX sex, RE::TESRace* race) {
@@ -260,6 +296,25 @@ namespace raceswap
 
 			logger::info("Begin categorizing...");
 
+			// Populate NPC used headparsts
+			for (auto const& [formid, form] : *map) {
+				//To do
+				if ((formid & 0xFF000000) == 0xFF000000)
+					continue;
+
+				if (form->Is(RE::FormType::NPC)) {
+					auto& headparts = form->As<RE::TESNPC>()->headParts;
+					auto numHeadParts = form->As<RE::TESNPC>()->numHeadParts;
+
+					for (std::uint8_t i = 0; i < numHeadParts; i++) {
+						auto& headpart = headparts[i];
+						usedHeadparts.emplace(headpart);
+						for (auto extra : headpart->extraParts) {
+							usedHeadparts.emplace(extra);
+						}
+					}
+				}
+			}
 			//Categorizing head parts and calculate their discriptors (HDPTData) for matching
 			for (auto const& [formid, form] : *map) {
 				//To do
@@ -283,7 +338,8 @@ namespace raceswap
 					if (IsValidHeadPart(hdpt)) {
 						if (hdpt->flags.any(RE::BGSHeadPart::Flag::kMale)) {
 							hdpt->validRaces->ForEachForm(_append_to_list_male);
-						} else if (hdpt->flags.any(RE::BGSHeadPart::Flag::kFemale)) {
+						}
+						if (hdpt->flags.any(RE::BGSHeadPart::Flag::kFemale)) {
 							hdpt->validRaces->ForEachForm(_append_to_list_female);
 						}
 					}
@@ -293,17 +349,6 @@ namespace raceswap
 						// TODO: Could we support animal races with no face related data?
 						// TODO: We could make this cleaner/simpler
 						valid_races.push_back(form->As<RE::TESRace>());
-					}
-				} else if (form->Is(RE::FormType::NPC)) {
-					auto& headparts = form->As<RE::TESNPC>()->headParts;
-					auto numHeadParts = form->As<RE::TESNPC>()->numHeadParts;
-
-					for (std::uint8_t i = 0; i < numHeadParts; i++) {
-						auto& headpart = headparts[i];
-						usedHeadparts.emplace(headpart);
-						for (auto extra : headpart->extraParts) {
-							usedHeadparts.emplace(extra);
-						}
 					}
 				}
 			}

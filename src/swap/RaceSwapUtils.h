@@ -24,25 +24,9 @@ namespace raceutils
 		return item_list[rand % item_list.size()];
 	}
 
-	template <class T>
-	bool is_amongst(std::vector<T> item_list, T elem)
-	{
-		return std::find(item_list.begin(), item_list.end(), elem) != item_list.end();
-	}
-
-	template <class T>
-	bool is_amongst(RE::BSTArray<T> item_list, T elem)
-	{
-		return std::find(item_list.begin(), item_list.end(), elem) != item_list.end();
-	}
-
-	template <class _First_T, class _Second_T>
-	bool is_amongst(std::unordered_map<_First_T, _Second_T> item_map, _First_T elem)
-	{
-		return item_map.find(elem) != item_map.end();
-	}
-
 	using HDPTData = std::tuple<std::uint32_t, std::uint32_t, std::uint32_t>;
+
+	using SkinTextureData = std::uint32_t;
 		
 	using _likelihood_t = uint16_t;
 
@@ -51,6 +35,12 @@ namespace raceutils
 	_likelihood_t _match(HDPTData dst, HDPTData src);
 
 	std::vector<RE::BGSHeadPart*> MatchHDPTData(HDPTData dst, std::vector<RE::BGSHeadPart*> src_hdpts, std::vector<HDPTData*> src_data);
+
+	SkinTextureData ExtractKeywords(RE::BGSTextureSet* hdpt);
+
+	_likelihood_t _match(SkinTextureData dst, SkinTextureData src);
+	std::vector<RE::BGSTextureSet*> MatchSkinTextureData(SkinTextureData dst, std::vector<RE::BGSTextureSet*> src_hdpts, std::vector<SkinTextureData> src_data);
+
 
 	/* 
 	Class for random number generation based on a TESForm.

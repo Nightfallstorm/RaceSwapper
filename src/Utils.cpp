@@ -31,6 +31,11 @@ namespace utils
 			hash ^= hash << 17;
 			hash += hash >> 5;
 		}
+
+		// TODO: Use currentPlayerID to have different hash/"seed" for each playthrough
+		//if (true) {
+		//	hash += RE::BGSSaveLoadManager::GetSingleton()->currentPlayerID;
+		//} 
 		return hash;
 	}
 
@@ -39,13 +44,11 @@ namespace utils
 		if (!a_tintLayers) {
 			return nullptr;
 		}
-		auto memoryManager = RE::MemoryManager::GetSingleton();
-		auto copiedTintLayers = new RE::BSTArray<RE::TESNPC::Layer*>(*a_tintLayers);
+		auto copiedTintLayers = utils::AllocateMemoryCleanly<RE::BSTArray<RE::TESNPC::Layer*>>();
 
-		copiedTintLayers->clear();
 		if (!a_tintLayers->empty()) {
 			for (auto tint : *a_tintLayers) {
-				auto newLayer = reinterpret_cast<RE::TESNPC::Layer*>(memoryManager->Allocate(0xC, 0, 0));
+				auto newLayer = AllocateMemoryCleanly<RE::TESNPC::Layer>();
 				newLayer->tintColor = tint->tintColor;
 				newLayer->tintIndex = tint->tintIndex;
 				newLayer->preset = tint->preset;
@@ -59,25 +62,20 @@ namespace utils
 
 	RE::TESNPC::HeadRelatedData* CopyHeadRelatedData(RE::TESNPC::HeadRelatedData* a_data)
 	{
-		auto memoryManager = RE::MemoryManager::GetSingleton();
-		if (a_data && (a_data->hairColor || a_data->faceDetails)) {
-			auto newHeadData = reinterpret_cast<RE::TESNPC::HeadRelatedData*>(memoryManager->Allocate(0x10, 0, 0));
-			newHeadData->hairColor = 0;
-			newHeadData->faceDetails = 0;
-			return newHeadData;
-		} else {
-			return nullptr;
+		auto newHeadData = AllocateMemoryCleanly<RE::TESNPC::HeadRelatedData>();
+		if (a_data) {
+			newHeadData->hairColor = a_data->hairColor;
+			newHeadData->faceDetails = a_data->faceDetails;
 		}
+		return newHeadData;
 	}
 
 	RE::BGSHeadPart** CopyHeadParts(RE::BGSHeadPart** a_parts, std::uint32_t a_numHeadParts)
 	{
-		auto memoryManager = RE::MemoryManager::GetSingleton();
 		if (!a_parts) {
 			return nullptr;
 		}
-
-		auto newHeadParts = reinterpret_cast<RE::BGSHeadPart**>(memoryManager->Allocate(sizeof(void*) * a_numHeadParts, 0, 0));
+		auto newHeadParts = AllocateMemoryCleanly<RE::BGSHeadPart*>(sizeof(void*) * a_numHeadParts);
 		for (std::uint32_t index = 0; index < a_numHeadParts; index++) {
 			newHeadParts[index] = a_parts[index];
 		}
@@ -90,8 +88,8 @@ namespace utils
 			return nullptr;
 		}
 
-		auto memoryManager = RE::MemoryManager::GetSingleton();
-		auto newFaceData = reinterpret_cast<RE::TESNPC::FaceData*>(memoryManager->Allocate(0x5c, 0, 0));
+		auto newFaceData = AllocateMemoryCleanly<RE::TESNPC::FaceData>();
+
 		for (std::uint32_t i = 0; i < 19; i++) {
 			newFaceData->morphs[i] = a_faceData->morphs[i];
 		}
@@ -169,5 +167,34 @@ namespace utils
 			return GetEditorID(a_form->GetFormID());
 		}
 	};
+
+	RE::TESRace* GetValidRaceForArmorRecursive(RE::TESObjectARMO* a_armor, RE::TESRace* a_race) {
+		if (a_race == nullptr) {
+			return nullptr;
+		}
+		bool isValidRace = false;
+		for (auto addon : a_armor->armorAddons) {
+			if (addon->race == a_race || is_amongst(addon->additionalRaces, a_race)) {
+				isValidRace = true;
+				break;
+			}
+		}
+		
+		return isValidRace ? a_race : GetValidRaceForArmorRecursive(a_armor, a_race->armorParentRace);
+	}
+
+	template <class T>
+	T* AllocateMemoryCleanly() {
+		return AllocateMemoryCleanly<T>((std::uint32_t) sizeof(T));
+	}
+	
+	template <class T>
+	T* AllocateMemoryCleanly(std::uint32_t a_size)
+	{
+		auto data = RE::MemoryManager::GetSingleton()->Allocate(a_size, 0, 0);
+		std::memset(data, 0, a_size);
+
+		return reinterpret_cast<T*>(data);
+	}
 }
 

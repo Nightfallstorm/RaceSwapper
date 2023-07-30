@@ -46,7 +46,7 @@ void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRac
 
 	auto originalRace = a_data->race;
 	a_data->race = a_otherRace;
-	a_data->faceNPC = a_data->baseNPC; // Prevents cases where face NPC is configured differently
+	a_data->faceNPC = nullptr; // Prevents cases where face NPC is configured differently
 	a_data->skeletonModel = &a_otherRace->skeletonModels[a_data->isFemale];
 	a_data->isBeastRace = a_otherRace->HasKeywordID(constants::Keyword_IsBeastRace);
 	a_data->skin = a_otherRace->skin;
@@ -55,19 +55,85 @@ void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRac
 	a_data->bodyTextureModel = &a_otherRace->bodyTextureModels[a_data->isFemale];
 	a_data->behaviorGraph = &a_otherRace->behaviorGraphs[a_data->isFemale];
 
-	raceutils::RandomGen rand_generator(a_data->baseNPC);
+	raceutils::RandomGen rand_generator(a_data->baseNPC);	
 
+	DoHeadData(rand_generator, a_data);
+	DoHeadParts(rand_generator, a_data);
+	DoTints(rand_generator, a_data, originalRace);
+	DoHeadMorphs(rand_generator, a_data);
+
+	return;
+}
+
+RE::BGSColorForm* GetClosestColorForm(RE::BGSColorForm* a_colorForm, RE::BSTArray<RE::BGSColorForm*>* a_colors)
+{
+	if (!a_colorForm || !a_colors || a_colors->empty()) {
+		return nullptr;
+	}
+
+	RE::BGSColorForm* closestColor = nullptr;
+	int closestPresetMatch = 1000000;  // Closer to 0.0 is better
+	RE::Color origColor = a_colorForm->color;
+	for (auto colorForm : *a_colors) {
+		RE::Color currentColor = colorForm->color;
+
+		int currentPresetMatch = std::abs(origColor.blue - currentColor.blue) +
+		                         std::abs(origColor.green - currentColor.green) +
+		                         std::abs(origColor.red - currentColor.red);
+
+		if (currentPresetMatch < closestPresetMatch) {
+			closestPresetMatch = currentPresetMatch;
+			closestColor = colorForm;
+		}
+	}
+
+	return closestColor;
+}
+
+
+bool RaceSwap::DoHeadData(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data)
+{
 	auto database = raceswap::DataBase::GetSingleton();
+	auto defaultTexture = a_data->race->faceRelatedData[a_data->isFemale]->defaultFaceDetailsTextureSet;
+	if (!a_data->headRelatedData->faceDetails) {
+		logger::debug("No skin texture, using new default {} {:x}", utils::GetFormEditorID(defaultTexture).c_str(), defaultTexture->formID);
+		a_data->headRelatedData->faceDetails = defaultTexture;
+	} else {
+		auto item_list = database->GetMatchedSkinTextureResults(static_cast<RE::SEX>(a_data->isFemale), a_data->race, a_data->headRelatedData->faceDetails);
 
+		auto new_item = raceutils::random_pick(item_list, rand_gen.GetNext());
+		if (new_item) {
+			logger::debug("Swapping from {} {:x} to skin texture {} {:x}",
+				utils::GetFormEditorID(a_data->headRelatedData->faceDetails).c_str(), a_data->headRelatedData->faceDetails->formID,
+				utils::GetFormEditorID(new_item).c_str(), new_item->formID);
+			a_data->headRelatedData->faceDetails = new_item;
+		} else {
+			logger::debug("New skin texture null, using new default {} {:x}", utils::GetFormEditorID(defaultTexture).c_str(), defaultTexture->formID);
+			a_data->headRelatedData->faceDetails = defaultTexture;
+		}
+	}
+
+	auto currentHairColor = a_data->headRelatedData->hairColor;
+	auto allHairColors = a_data->race->faceRelatedData[a_data->isFemale]->availableHairColors;
+	a_data->headRelatedData->hairColor = GetClosestColorForm(currentHairColor, allHairColors);
+	return true;
+}
+
+bool RaceSwap::DoHeadParts(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data)
+{
+	auto database = raceswap::DataBase::GetSingleton();
 	// General Race Swapping of head parts
 	for (std::uint8_t i = 0; i < a_data->numHeadParts; i++) {
-		auto newPart = SwitchHeadPart(rand_generator, a_data, a_data->headParts[i]);
+		if (!a_data->headParts[i]) {
+			continue;
+		}
+		auto newPart = SwitchHeadPart(rand_gen, a_data, a_data->headParts[i]);
 		auto oldPart = a_data->headParts[i];
-		logger::debug("{:x} Swapping {} {} {:x} to {} {} {:x}", 
+		logger::debug("{:x} Swapping {} {} {:x} to {} {} {:x}",
 			a_data->baseNPC->formID,
 			GetHeadPartTypeAsName(oldPart->type.get()),
 			utils::GetFormEditorID(oldPart),
-			oldPart->formID, 
+			oldPart->formID,
 
 			GetHeadPartTypeAsName(newPart->type.get()),
 			utils::GetFormEditorID(newPart),
@@ -76,25 +142,49 @@ void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRac
 		a_data->headParts[i] = newPart;
 	}
 
-	// Second passthrough, grab all extras
-	std::vector<RE::BGSHeadPart*> extras;
+	// Second passthrough, remove the hairline since hair will choose if it has a hairline or not
 	for (std::uint8_t i = 0; i < a_data->numHeadParts; i++) {
-		auto part = a_data->headParts[i];
-		for (auto& extra : part->extraParts) {
-			extras.push_back(extra);
+		if (!a_data->headParts[i]) {
+			continue;
+		}
+
+		auto partData = database->FindOrCalculateHDPTData(a_data->headParts[i]);
+		if ((std::get<0>(*partData) & raceswap::DataBase::HDPTType::HairLine) != 0) {
+			logger::debug("Removing hairline {} {:x}", utils::GetFormEditorID(a_data->headParts[i]), a_data->headParts[i]->formID);
+			a_data->headParts[i] = nullptr;
 		}
 	}
-	
-	// Third passthrough, any head parts covered by extras is replaced with the offending extra
+
+	// Third passthrough, grab all extras
+	std::vector<RE::BGSHeadPart*> extras;
 	for (std::uint8_t i = 0; i < a_data->numHeadParts; i++) {
+		if (!a_data->headParts[i]) {
+			continue;
+		}
+
+		auto part = a_data->headParts[i];
+		for (auto extra : part->extraParts) {
+			if (extra) {
+				extras.push_back(extra);
+			}
+		}
+	}
+
+	// Fourth passthrough, any head parts covered by extras is replaced with the offending extra
+	for (std::uint8_t i = 0; i < a_data->numHeadParts; i++) {
+		if (!a_data->headParts[i]) {
+			continue;
+		}
+
 		auto part = a_data->headParts[i];
 		auto partData = database->FindOrCalculateHDPTData(a_data->headParts[i]);
 		RE::BGSHeadPart* replacingExtra = nullptr;
-		
-		for (auto& extra : extras) {
+
+		for (auto extra : extras) {
 			auto extraData = database->FindOrCalculateHDPTData(extra);
-			if (std::get<0>(*extraData) == std::get<0>(*partData) && 
-				part->type == extra->type) {
+			if (std::get<0>(*extraData) == std::get<0>(*partData) &&
+				part->type == extra->type && extra->validRaces &&
+				utils::is_amongst(extra->validRaces->forms, a_data->race->As<RE::TESForm>())) {
 				replacingExtra = extra;
 				break;
 			}
@@ -114,10 +204,7 @@ void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRac
 		}
 	}
 
-	DoTints(rand_generator, a_data, originalRace);
-	DoHeadMorphs(rand_generator, a_data);
-
-	return;
+	return true;
 }
 
 bool RaceSwap::DoHeadMorphs(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data)
@@ -172,14 +259,24 @@ std::uint16_t GetClosestPresetIdx(RE::Color a_color, RE::TESRace::FaceRelatedDat
 
 bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data, RE::TESRace* a_originalRace)
 {
-	if (!a_data->tintLayers || 
-		!a_originalRace->faceRelatedData[a_data->isFemale] ||
-		!a_originalRace->faceRelatedData[a_data->isFemale]->tintMasks || 
-		!a_data->race->faceRelatedData[a_data->isFemale] ||
-		!a_data->race->faceRelatedData[a_data->isFemale]->tintMasks) {
-		logger::info("  No tint layers or tint masks present!");
+	if (!a_originalRace->faceRelatedData[a_data->isFemale] ||
+		!a_originalRace->faceRelatedData[a_data->isFemale]->tintMasks) {
+		logger::info("  No tint masks for the original race!");
 		return false;
 	}
+
+	if (!a_data->race->faceRelatedData[a_data->isFemale] ||
+		!a_data->race->faceRelatedData[a_data->isFemale]->tintMasks) {
+		logger::info("  No tint masks for the new race!");
+		return false;
+	}
+
+	if (!a_data->tintLayers) {
+		// NPC has no tints, but the new race does. Create a tint array to ensure skin matches face later
+		logger::warn(" {:x} has no tint layers!", a_data->baseNPC->formID);
+		a_data->tintLayers = utils::AllocateMemoryCleanly<RE::BSTArray<RE::TESNPC::Layer*>>();
+	}
+
 	auto skintone_tintasset = raceswap::DataBase::GetSingleton()->GetRaceSkinTint(static_cast<RE::SEX>(a_data->isFemale), a_data->race);
 	auto& originalTintAssets = a_originalRace->faceRelatedData[a_data->isFemale]->tintMasks;
 	auto& newTintAssets = a_data->race->faceRelatedData[a_data->isFemale]->tintMasks;
@@ -189,8 +286,8 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 	for (auto& tint : *(a_data->tintLayers)) {
 		RE::TESRace::FaceRelatedData::TintAsset* originalTintAsset = nullptr;
 
-		auto matchedTints = new RE::BSTArray<RE::TESRace::FaceRelatedData::TintAsset*>();
-		matchedTints->clear();
+		auto matchedTints = RE::BSTArray<RE::TESRace::FaceRelatedData::TintAsset*>();
+		matchedTints.clear();
 		// Find original tint asset from the original race
 		for (auto& asset : *originalTintAssets) {
 			if (asset->texture.index == tint->tintIndex) {
@@ -200,25 +297,32 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 		}
 	
 		if (!originalTintAsset) {
+			logger::debug("tint index {} not found", tint->tintIndex);
 			// Can't find original asset, invalid tint? Remove the tint to be safe
 			tint->interpolationValue = 0; // TODO: Check if this actually removes the tint from being displayed?
-			break;
+			tint->tintIndex = 65535;
+			tint->tintColor = RE::Color(255, 255, 255, 255);
+			
+			continue;
 		}
 
 		// Find all tint assets in new race that is the same type, then pick a pseudo-random one
 		for (auto& asset : *newTintAssets) {
 			if (asset->texture.skinTone == originalTintAsset->texture.skinTone) {
-				matchedTints->push_back(asset);
+				matchedTints.push_back(asset);
 			}
 		}
 
-		if (matchedTints->empty()) {
+		if (matchedTints.empty()) {
+			logger::debug("tint index {} does not have matching tints", tint->tintIndex);
 			// Can't find original asset, invalid tint? Remove the tint to be safe
 			tint->interpolationValue = 0;  // TODO: Check if this actually removes the tint from being displayed?
-			break;
+			tint->tintIndex = 65535;
+			tint->tintColor = RE::Color(255, 255, 255, 255);
+			continue;
 		}
 
-		auto new_tint = raceutils::random_pick(*matchedTints, rand_gen.GetNext());
+		auto new_tint = raceutils::random_pick(matchedTints, rand_gen.GetNext());
 
 		// Replace values of original tint with new tint, keeping closest color match that's within the asset's presets
 
@@ -233,10 +337,11 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 
 		// Update body tint color if this is for skin
 		if (new_tint->texture.skinTone == RE::TESRace::FaceRelatedData::TintAsset::TintLayer::SkinTone::kSkinTone) {
-			a_data->bodyTintColor = tint->tintColor;
+			
 			// This seems to make the skin tint correctly match the body tint
 			tint->interpolationValue = 100;
 			tint->tintColor.alpha = 255;
+			a_data->bodyTintColor = tint->tintColor;
 			bodyColorFixed = true;
 			logger::info("  Skin tone changed to RGB:{}|{}|{}|{}", tint->tintColor.red, tint->tintColor.green, tint->tintColor.blue, tint->tintColor.alpha);
 		}
@@ -244,23 +349,26 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 
 	//If npc doesn't have skin tint layer, assign closest skin tint layer
 	if (!bodyColorFixed && skintone_tintasset) {
-		RE::TESNPC::Layer* skin_tint = new RE::TESNPC::Layer();
+		RE::TESNPC::Layer* skin_tint = utils::AllocateMemoryCleanly<RE::TESNPC::Layer>();
 		skin_tint->tintIndex = skintone_tintasset->texture.index;
 
 		auto presetIdx = GetClosestPresetIdx(a_data->bodyTintColor, skintone_tintasset->presets);
 		skin_tint->preset = presetIdx;
 
 		skin_tint->tintColor = skintone_tintasset->presets.colors[presetIdx]->color;
+		a_data->bodyTintColor = skin_tint->tintColor;
 
+		// This seems to make the skin tint correctly match the body tint
 		skin_tint->interpolationValue = 100;
+		skin_tint->tintColor.alpha = 255;
 
 		a_data->tintLayers->push_back(skin_tint);
 
-		a_data->bodyTintColor = skin_tint->tintColor;
+		
 		
 		logger::info("  NPC has no skin tone. Skin tone assigned to RGB:{}|{}|{}", skin_tint->tintColor.red, skin_tint->tintColor.green, skin_tint->tintColor.blue);
 	} else if (!skintone_tintasset) {
-		logger::info("  NPC has no skin tone. And Race: {} Sex: {} has no default skin tone.", utils::GetFormEditorID(a_data->race), a_data->isFemale);
+		logger::info("  NPC has no skin tone. And Race: {} Sex: {} has no default skin tone.", utils::GetFormEditorID(a_data->race).c_str(), a_data->isFemale);
 		return false;
 	}
 
@@ -277,7 +385,7 @@ RE::BGSHeadPart* RaceSwap::SwitchHeadPart(raceutils::RandomGen rand_gen, NPCAppe
 	auto database = raceswap::DataBase::GetSingleton();
 
 	raceswap::DataBase::HDPTData hdptd = *(database->FindOrCalculateHDPTData(a_part));
-	auto item_list = database->GetMatchedResults(head_part_type, static_cast<RE::SEX>(a_data->isFemale), a_data->race, hdptd);
+	auto item_list = database->GetMatchedHeadPartResults(head_part_type, static_cast<RE::SEX>(a_data->isFemale), a_data->race, hdptd);
 
 	auto new_item = raceutils::random_pick(item_list, rand_gen.GetNext());
 	if (new_item && !database->IsValidHeadPart(new_item)) {

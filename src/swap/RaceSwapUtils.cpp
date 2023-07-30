@@ -71,4 +71,52 @@ namespace raceutils
 		}
 		return likelihood_map[max];
 	}
+
+	SkinTextureData ExtractKeywords(RE::BGSTextureSet* hdpt)
+	{
+		std::uint32_t characteristics = 0;
+		std::string str(utils::GetFormEditorID(hdpt));
+
+		if (str == "") {
+			logger::info("{:x} has no editor ID!");
+		}
+
+		for (auto& [charString, characteristic] : raceswap::DataBase::SkinCharMap) {
+			if (str.find(charString) != std::string::npos) {
+				characteristics |= characteristic;
+			}
+		}
+
+		SkinTextureData result = { characteristics };
+		return result;
+	}
+
+	_likelihood_t _match(SkinTextureData dst, SkinTextureData src)
+	{
+		_likelihood_t likelihood = 0;
+
+		auto charsMatch = std::bitset<32>(dst & src).count();
+		likelihood += (_likelihood_t)charsMatch;
+		likelihood = likelihood << 4;
+
+		return likelihood;
+	}
+	std::vector<RE::BGSTextureSet*> MatchSkinTextureData(SkinTextureData dst, std::vector<RE::BGSTextureSet*> src_hdpts, std::vector<SkinTextureData> src_data)
+	{
+		if (src_hdpts.size() != src_data.size()) {
+			return std::vector<RE::BGSTextureSet*>();
+		}
+
+		std::map<_likelihood_t, std::vector<RE::BGSTextureSet*>> likelihood_map;
+
+		_likelihood_t max = 0;
+		for (int i = 0; i < src_data.size(); i++) {
+			auto likelihood = _match(dst, src_data[i]);
+			if (likelihood > max)
+				max = likelihood;
+			likelihood_map[likelihood].push_back(src_hdpts[i]);
+		}
+		return likelihood_map[max];
+	}
+
 }
