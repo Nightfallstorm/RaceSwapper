@@ -95,9 +95,15 @@ bool RaceSwap::DoHeadData(raceutils::RandomGen rand_gen, NPCAppearance::NPCData*
 {
 	auto database = raceswap::DataBase::GetSingleton();
 	auto defaultTexture = a_data->race->faceRelatedData[a_data->isFemale]->defaultFaceDetailsTextureSet;
+	
 	if (!a_data->headRelatedData->faceDetails) {
-		logger::debug("No skin texture, using new default {} {:x}", utils::GetFormEditorID(defaultTexture).c_str(), defaultTexture->formID);
-		a_data->headRelatedData->faceDetails = defaultTexture;
+		if (defaultTexture) {
+			logger::debug("No skin texture, using new default {} {:x}", utils::GetFormEditorID(defaultTexture).c_str(), defaultTexture->formID);
+			a_data->headRelatedData->faceDetails = defaultTexture;
+		} else {
+			logger::debug("No skin texture, using NONE");
+			a_data->headRelatedData->faceDetails = nullptr;
+		}	
 	} else {
 		auto item_list = database->GetMatchedSkinTextureResults(static_cast<RE::SEX>(a_data->isFemale), a_data->race, a_data->headRelatedData->faceDetails);
 
