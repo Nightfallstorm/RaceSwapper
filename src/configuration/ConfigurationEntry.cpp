@@ -80,7 +80,7 @@ bool ConstructSwapData(std::string line, ConfigurationEntry::EntryData* a_data)
 		if (entry.find('%') != std::string::npos) {
 			auto percent = std::stoul(entry.substr(0, entry.find('%')), nullptr, 10);
 			percent = max(0, min(100, percent));
-			a_data->probability = percent;
+			a_data->weight = percent;
 		} else {
 			auto form = RE::TESForm::LookupByEditorID(entry);
 			form = form ? form : GetFormFromString(entry);
@@ -158,6 +158,10 @@ bool ConfigurationEntry::MatchesNPC(RE::TESNPC* a_npc) {
 	isMatch = isMatch || (entryData.npcMatch != nullptr && entryData.npcMatch->formID == a_npc->formID);
 	isMatch = isMatch || (entryData.raceMatch != nullptr && entryData.raceMatch->formID == a_npc->race->formID);
 	isMatch = isMatch || (entryData.factionMatch != nullptr && a_npc->IsInFaction(entryData.factionMatch));
+
+	// Prevents child NPCs matching for adult swaps and vice-versa
+	isMatch = isMatch && (!entryData.otherRace || a_npc->race->IsChildRace() == entryData.otherRace->IsChildRace());
+	isMatch = isMatch && (!entryData.otherNPC || a_npc->race->IsChildRace() == entryData.otherNPC->race->IsChildRace());
 
 	if (isMatch) {
 		// TODO: Hash should include the entry itself to prevent all entries with the same weight
