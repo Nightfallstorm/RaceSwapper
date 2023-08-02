@@ -90,7 +90,6 @@ RE::BGSColorForm* GetClosestColorForm(RE::BGSColorForm* a_colorForm, RE::BSTArra
 	return closestColor;
 }
 
-
 bool RaceSwap::DoHeadData(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data)
 {
 	auto database = raceswap::DataBase::GetSingleton();
@@ -127,14 +126,22 @@ bool RaceSwap::DoHeadData(raceutils::RandomGen rand_gen, NPCAppearance::NPCData*
 
 bool RaceSwap::DoHeadParts(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data)
 {
-	auto database = raceswap::DataBase::GetSingleton();
-	// General Race Swapping of head parts
+	std::vector<RE::BGSHeadPart*> oldHeadparts;
+	std::vector<RE::BGSHeadPart*> newHeadParts;
+
+	// First passthrough, gather all non-extra headparts into arraylist
 	for (std::uint8_t i = 0; i < a_data->numHeadParts; i++) {
-		if (!a_data->headParts[i]) {
-			continue;
+		if (a_data->headParts[i] && !a_data->headParts[i]->IsExtraPart()) {
+			oldHeadparts.push_back(a_data->headParts[i]);
 		}
-		auto newPart = SwitchHeadPart(rand_gen, a_data, a_data->headParts[i]);
-		auto oldPart = a_data->headParts[i];
+	}
+
+	// Second passthrough, swap to other race headparts
+	
+	for (auto headpart : oldHeadparts) {
+		auto newPart = SwitchHeadPart(rand_gen, a_data, headpart);
+		auto oldPart = headpart;
+
 		logger::debug("{:x} Swapping {} {} {:x} to {} {} {:x}",
 			a_data->baseNPC->formID,
 			GetHeadPartTypeAsName(oldPart->type.get()),
@@ -145,70 +152,22 @@ bool RaceSwap::DoHeadParts(raceutils::RandomGen rand_gen, NPCAppearance::NPCData
 			utils::GetFormEditorID(newPart),
 			newPart->formID);
 
-		a_data->headParts[i] = newPart;
-	}
-
-	// Second passthrough, remove the hairline since hair will choose if it has a hairline or not
-	for (std::uint8_t i = 0; i < a_data->numHeadParts; i++) {
-		if (!a_data->headParts[i]) {
-			continue;
-		}
-
-		auto partData = database->FindOrCalculateHDPTData(a_data->headParts[i]);
-		if ((std::get<0>(*partData) & raceswap::DataBase::HDPTType::HairLine) != 0) {
-			logger::debug("Removing hairline {} {:x}", utils::GetFormEditorID(a_data->headParts[i]), a_data->headParts[i]->formID);
-			a_data->headParts[i] = nullptr;
+		// Add new headpart, along with its extras
+		newHeadParts.push_back(newPart);
+		for (auto extra : newPart->extraParts) {
+			newHeadParts.push_back(extra);
 		}
 	}
 
-	// Third passthrough, grab all extras
-	std::vector<RE::BGSHeadPart*> extras;
-	for (std::uint8_t i = 0; i < a_data->numHeadParts; i++) {
-		if (!a_data->headParts[i]) {
-			continue;
-		}
-
-		auto part = a_data->headParts[i];
-		for (auto extra : part->extraParts) {
-			if (extra) {
-				extras.push_back(extra);
-			}
-		}
+	// Final passthrough, replace the original headparts with the new ones
+	auto numHeadParts = (std::uint8_t) newHeadParts.size();
+	RE::BGSHeadPart** headparts = utils::AllocateMemoryCleanly<RE::BGSHeadPart*>(numHeadParts * 8);
+	for (std::uint8_t i = 0; i < numHeadParts; i++) {
+		headparts[i] = newHeadParts.at(i);
 	}
 
-	// Fourth passthrough, any head parts covered by extras is replaced with the offending extra
-	for (std::uint8_t i = 0; i < a_data->numHeadParts; i++) {
-		if (!a_data->headParts[i]) {
-			continue;
-		}
-
-		auto part = a_data->headParts[i];
-		auto partData = database->FindOrCalculateHDPTData(a_data->headParts[i]);
-		RE::BGSHeadPart* replacingExtra = nullptr;
-
-		for (auto extra : extras) {
-			auto extraData = database->FindOrCalculateHDPTData(extra);
-			if (std::get<0>(*extraData) == std::get<0>(*partData) &&
-				part->type == extra->type && extra->validRaces &&
-				utils::is_amongst(extra->validRaces->forms, a_data->race->As<RE::TESForm>())) {
-				replacingExtra = extra;
-				break;
-			}
-		}
-
-		if (replacingExtra) {
-			logger::debug("{:x} {} {} {:x} replaced with existing extra {} {} {:x}",
-				a_data->baseNPC->formID,
-				GetHeadPartTypeAsName(part->type.get()).c_str(),
-				utils::GetFormEditorID(part),
-				part->formID,
-
-				GetHeadPartTypeAsName(replacingExtra->type.get()).c_str(),
-				utils::GetFormEditorID(replacingExtra),
-				replacingExtra->formID);
-			a_data->headParts[i] = replacingExtra;
-		}
-	}
+	a_data->numHeadParts = numHeadParts;
+	a_data->headParts = headparts;
 
 	return true;
 }
