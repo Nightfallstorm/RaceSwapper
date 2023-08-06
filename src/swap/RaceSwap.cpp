@@ -93,6 +93,10 @@ RE::BGSColorForm* GetClosestColorForm(RE::BGSColorForm* a_colorForm, RE::BSTArra
 bool RaceSwap::DoHeadData(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data)
 {
 	auto database = raceswap::DataBase::GetSingleton();
+	if (!a_data->race->faceRelatedData[a_data->isFemale]) {
+		return false;
+	}
+
 	auto defaultTexture = a_data->race->faceRelatedData[a_data->isFemale]->defaultFaceDetailsTextureSet;
 	
 	if (!a_data->headRelatedData->faceDetails) {
@@ -349,7 +353,8 @@ RE::BGSHeadPart* RaceSwap::SwitchHeadPart(raceutils::RandomGen rand_gen, NPCAppe
 
 	auto database = raceswap::DataBase::GetSingleton();
 
-	raceswap::DataBase::HDPTData hdptd = *(database->FindOrCalculateHDPTData(a_part));
+	auto& hdptd = *(database->FindOrCalculateHDPTData(a_part));
+
 	auto item_list = database->GetMatchedHeadPartResults(head_part_type, static_cast<RE::SEX>(a_data->isFemale), a_data->race, hdptd);
 
 	auto new_item = raceutils::random_pick(item_list, rand_gen.GetNext());

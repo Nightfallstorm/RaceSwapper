@@ -130,6 +130,7 @@ ConfigurationEntry* ConfigurationEntry::ConstructNewEntry(std::string line)
 	}
 	logger::info("Parsing: {}", line);
 
+	// TODO: Make this case insensitive
 	auto swapIndex = parsingLine.find("swap=");
 
 	auto matchLine = parsingLine.substr(0, swapIndex);

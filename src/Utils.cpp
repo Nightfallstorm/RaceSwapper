@@ -1,5 +1,6 @@
 #include "Utils.h"
 #include "PCH.h"
+#include "settings/Settings.h"
 
 
 
@@ -10,11 +11,19 @@ namespace utils
 		if (!a_form_seed) {
 			return std::string();
 		}
+		auto rawFormID = std::to_string(a_form_seed->GetFormID() & 0x00FFFFFF);
+
 		auto fileName = "DynamicForm";
 		if (!a_form_seed->IsDynamicForm()) {
 			fileName = a_form_seed->GetFile()->fileName;
 		}
-		return std::to_string(a_form_seed->GetFormID() & 0x00FFFFFF) + "_" + fileName;
+
+		std::string playthroughID = ""; 
+		if (Settings::GetSingleton()->features.any(Settings::Features::kPlaythroughRandomization)) {
+			playthroughID = std::to_string(RE::BGSSaveLoadManager::GetSingleton()->currentPlayerID);
+		}
+
+		return rawFormID + "_" + fileName + "_" + playthroughID;
 	}
 
 	size_t HashForm(RE::TESForm* a_form_seed)
@@ -191,7 +200,7 @@ namespace utils
 	template <class T>
 	T* AllocateMemoryCleanly(std::uint32_t a_size)
 	{
-		auto data = RE::MemoryManager::GetSingleton()->Allocate(a_size, 0, 0);
+		auto data = RE::malloc(a_size);
 		std::memset(data, 0, a_size);
 
 		return reinterpret_cast<T*>(data);

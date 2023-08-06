@@ -10,4 +10,5 @@ set(headers ${headers}
 	src/configuration/ConfigurationEntry.h
 	src/Utils.h
 	src/swap/RaceSwapDatabase.h
+	src/settings/Settings.h
 )

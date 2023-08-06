@@ -1,6 +1,8 @@
 #include "configuration/Configuration.h"
 #include "Hooks.h"
 #include "Utils.h"
+#include "settings/Settings.h"
+#include "swap/RaceSwapDatabase.h"
 
 void MessageInterface(SKSE::MessagingInterface::Message* msg) {
 	switch (msg->type) {
@@ -11,6 +13,7 @@ void MessageInterface(SKSE::MessagingInterface::Message* msg) {
 				logger::critical("po3_Tweaks not detected, mod will not function right!");
 			}
 			logger::info("Dependencies check complete!");
+			Settings::GetSingleton()->Load();
 			break;
 		}
 		case SKSE::MessagingInterface::kDataLoaded:

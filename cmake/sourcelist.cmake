@@ -10,4 +10,5 @@ set(sources ${sources}
 	src/configuration/Configuration.cpp
 	src/configuration/ConfigurationEntry.cpp
 	src/Utils.cpp
+	src/settings/Settings.cpp
 )
