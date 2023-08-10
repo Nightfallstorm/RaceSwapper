@@ -183,7 +183,8 @@ namespace raceswap
 			}
 			auto iter = _hdptd_cache.find(hdpt);
 			if (iter == _hdptd_cache.end()) {
-				HDPTData* hdptd_ptr = new HDPTData(raceutils::ExtractKeywords(hdpt));
+				HDPTData* hdptd_ptr = RE::calloc<HDPTData>(1);
+				*hdptd_ptr = raceutils::ExtractKeywords(hdpt);
 				_hdptd_cache[hdpt] = hdptd_ptr;
 				return hdptd_ptr;
 			} else {

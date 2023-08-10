@@ -39,13 +39,5 @@ namespace utils
 	}
 
 	RE::TESRace* GetValidRaceForArmorRecursive(RE::TESObjectARMO* a_armor, RE::TESRace* a_race);
-
-	// Allocates memory for T in a clean way (AKA no garbage data in the new structure)
-	template <class T>
-	T* AllocateMemoryCleanly();
-
-	// Allocates memory for T in a clean way (AKA no garbage data in the new structure) with a specific size
-	template <class T>
-	T* AllocateMemoryCleanly(std::uint32_t a_size);
 }
 

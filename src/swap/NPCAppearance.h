@@ -63,6 +63,8 @@ public:
 
 	static void EraseNPCAppearance(RE::FormID a_formID);
 
+	TES_HEAP_REDEFINE_NEW();
+
 private:
 	RE::TESNPC* npc;
 

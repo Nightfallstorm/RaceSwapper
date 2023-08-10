@@ -165,7 +165,7 @@ bool RaceSwap::DoHeadParts(raceutils::RandomGen rand_gen, NPCAppearance::NPCData
 
 	// Final passthrough, replace the original headparts with the new ones
 	auto numHeadParts = (std::uint8_t) newHeadParts.size();
-	RE::BGSHeadPart** headparts = utils::AllocateMemoryCleanly<RE::BGSHeadPart*>(numHeadParts * 8);
+	RE::BGSHeadPart** headparts = RE::calloc<RE::BGSHeadPart*>(numHeadParts);
 	for (std::uint8_t i = 0; i < numHeadParts; i++) {
 		headparts[i] = newHeadParts.at(i);
 	}
@@ -243,7 +243,7 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 	if (!a_data->tintLayers) {
 		// NPC has no tints, but the new race does. Create a tint array to ensure skin matches face later
 		logger::warn(" {:x} has no tint layers!", a_data->baseNPC->formID);
-		a_data->tintLayers = utils::AllocateMemoryCleanly<RE::BSTArray<RE::TESNPC::Layer*>>();
+		a_data->tintLayers = RE::calloc<RE::BSTArray<RE::TESNPC::Layer*>>(1);
 	}
 
 	auto skintone_tintasset = raceswap::DataBase::GetSingleton()->GetRaceSkinTint(static_cast<RE::SEX>(a_data->isFemale), a_data->race);
@@ -318,7 +318,7 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 
 	//If npc doesn't have skin tint layer, assign closest skin tint layer
 	if (!bodyColorFixed && skintone_tintasset) {
-		RE::TESNPC::Layer* skin_tint = utils::AllocateMemoryCleanly<RE::TESNPC::Layer>();
+		RE::TESNPC::Layer* skin_tint = RE::calloc<RE::TESNPC::Layer>(1);
 		skin_tint->tintIndex = skintone_tintasset->texture.index;
 
 		auto presetIdx = GetClosestPresetIdx(a_data->bodyTintColor, skintone_tintasset->presets);

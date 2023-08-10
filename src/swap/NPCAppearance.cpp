@@ -140,8 +140,21 @@ NPCAppearance::NPCAppearance(RE::TESNPC* a_npc, AppearanceConfiguration* a_confi
 	SetupNewAppearance();
 }
 
+void ClearNPCAppearanceData(NPCAppearance::NPCData a_data) {
+	RE::free(a_data.faceData);
+	RE::free(a_data.headParts);
+	RE::free(a_data.headRelatedData);
+	if (a_data.tintLayers) {
+		for (auto layer : *a_data.tintLayers) {
+			RE::free(layer);
+		}
+	}
+	RE::free(a_data.tintLayers);	
+}
+
 void NPCAppearance::dtor() {
-	// TODO: Clear/delete the data inside like tint layers, head data, etc.?
+	ClearNPCAppearanceData(alteredNPCData);
+	ClearNPCAppearanceData(originalNPCData);
 }
 
 // Filter for only NPCs this swapping can work on
@@ -196,8 +209,11 @@ void NPCAppearance::EraseNPCAppearance(RE::FormID a_formID)
 {
 	appearanceMapLock.lock();
 	if (appearanceMap.contains(a_formID)) {
-		appearanceMap.at(a_formID)->dtor();
+		auto appearance = appearanceMap.at(a_formID);
 		appearanceMap.erase(a_formID);
+		appearance->dtor();
+		delete appearance;
+		
 	}
 	appearanceMapLock.unlock();
 };

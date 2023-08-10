@@ -41,10 +41,6 @@ namespace utils
 			hash += hash >> 5;
 		}
 
-		// TODO: Use currentPlayerID to have different hash/"seed" for each playthrough
-		//if (true) {
-		//	hash += RE::BGSSaveLoadManager::GetSingleton()->currentPlayerID;
-		//} 
 		return hash;
 	}
 
@@ -53,11 +49,11 @@ namespace utils
 		if (!a_tintLayers) {
 			return nullptr;
 		}
-		auto copiedTintLayers = utils::AllocateMemoryCleanly<RE::BSTArray<RE::TESNPC::Layer*>>();
+		auto copiedTintLayers = RE::calloc<RE::BSTArray<RE::TESNPC::Layer*>>(1);
 
 		if (!a_tintLayers->empty()) {
 			for (auto tint : *a_tintLayers) {
-				auto newLayer = AllocateMemoryCleanly<RE::TESNPC::Layer>();
+				auto newLayer = RE::calloc<RE::TESNPC::Layer>(1);
 				newLayer->tintColor = tint->tintColor;
 				newLayer->tintIndex = tint->tintIndex;
 				newLayer->preset = tint->preset;
@@ -71,7 +67,7 @@ namespace utils
 
 	RE::TESNPC::HeadRelatedData* CopyHeadRelatedData(RE::TESNPC::HeadRelatedData* a_data)
 	{
-		auto newHeadData = AllocateMemoryCleanly<RE::TESNPC::HeadRelatedData>();
+		auto newHeadData = RE::calloc<RE::TESNPC::HeadRelatedData>(1);
 		if (a_data) {
 			newHeadData->hairColor = a_data->hairColor;
 			newHeadData->faceDetails = a_data->faceDetails;
@@ -84,7 +80,7 @@ namespace utils
 		if (!a_parts) {
 			return nullptr;
 		}
-		auto newHeadParts = AllocateMemoryCleanly<RE::BGSHeadPart*>(sizeof(void*) * a_numHeadParts);
+		auto newHeadParts = RE::calloc<RE::BGSHeadPart*>(a_numHeadParts);
 		for (std::uint32_t index = 0; index < a_numHeadParts; index++) {
 			newHeadParts[index] = a_parts[index];
 		}
@@ -97,7 +93,7 @@ namespace utils
 			return nullptr;
 		}
 
-		auto newFaceData = AllocateMemoryCleanly<RE::TESNPC::FaceData>();
+		auto newFaceData = RE::calloc<RE::TESNPC::FaceData>(1);
 
 		for (std::uint32_t i = 0; i < 19; i++) {
 			newFaceData->morphs[i] = a_faceData->morphs[i];
@@ -190,20 +186,6 @@ namespace utils
 		}
 		
 		return isValidRace ? a_race : GetValidRaceForArmorRecursive(a_armor, a_race->armorParentRace);
-	}
-
-	template <class T>
-	T* AllocateMemoryCleanly() {
-		return AllocateMemoryCleanly<T>((std::uint32_t) sizeof(T));
-	}
-	
-	template <class T>
-	T* AllocateMemoryCleanly(std::uint32_t a_size)
-	{
-		auto data = RE::malloc(a_size);
-		std::memset(data, 0, a_size);
-
-		return reinterpret_cast<T*>(data);
 	}
 }
 
