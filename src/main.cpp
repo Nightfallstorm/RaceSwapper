@@ -3,15 +3,22 @@
 #include "Utils.h"
 #include "settings/Settings.h"
 #include "swap/RaceSwapDatabase.h"
+#include "MergeMapperPluginAPI.h"
 
 void MessageInterface(SKSE::MessagingInterface::Message* msg) {
 	switch (msg->type) {
-		case SKSE::MessagingInterface::kPostLoad:
+		case SKSE::MessagingInterface::kPostPostLoad:
 		{
 			logger::info("Dependencies check...");
 			if (!GetModuleHandle(L"po3_Tweaks")) {
 				logger::critical("po3_Tweaks not detected, mod will not function right!");
 			}
+			MergeMapperPluginAPI::GetMergeMapperInterface001();  // Request interface
+			if (g_mergeMapperInterface) {                        // Use Interface
+				const auto version = g_mergeMapperInterface->GetBuildNumber();
+				logger::info("Got MergeMapper interface buildnumber {}", version);
+			} else
+				logger::info("MergeMapper not detected");
 			logger::info("Dependencies check complete!");
 			Settings::GetSingleton()->Load();
 			break;

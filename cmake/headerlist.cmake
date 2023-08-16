@@ -11,4 +11,5 @@ set(headers ${headers}
 	src/Utils.h
 	src/swap/RaceSwapDatabase.h
 	src/settings/Settings.h
+	src/MergeMapperPluginAPI.h
 )

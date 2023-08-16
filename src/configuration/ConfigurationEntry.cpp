@@ -1,6 +1,7 @@
 #pragma once
 #include "ConfigurationEntry.h"
 #include "Utils.h"
+#include "MergeMapperPluginAPI.h"
 
 bool IsValidEntry(std::string line) {
 	if (line.find("match=") == std::string::npos) {
@@ -24,8 +25,14 @@ RE::TESForm* GetFormFromString(std::string line) {
 	if (line.find('~') == std::string::npos) {
 		logger::error("missing plugin: {}", line);
 	}
+
 	auto plugin = line.substr(line.find('~') + 1);
-	auto formID = std::stoul(line.substr(0, line.find('~')), nullptr, 16);
+	RE::FormID formID = std::stoul(line.substr(0, line.find('~')), nullptr, 16);
+	if (g_mergeMapperInterface) {
+		auto mergeForm = g_mergeMapperInterface->GetNewFormID(plugin.c_str(), formID);
+		plugin = mergeForm.first;
+		formID = mergeForm.second;
+	}
 	auto form = RE::TESDataHandler::GetSingleton()->LookupForm(formID, plugin);
 	if (form == nullptr) {
 		logger::error("invalid form ID: {}", line);

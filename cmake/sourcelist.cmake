@@ -11,4 +11,5 @@ set(sources ${sources}
 	src/configuration/ConfigurationEntry.cpp
 	src/Utils.cpp
 	src/settings/Settings.cpp
+	src/MergeMapperPluginAPI.cpp
 )
