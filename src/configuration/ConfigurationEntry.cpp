@@ -33,6 +33,7 @@ RE::TESForm* GetFormFromString(std::string line) {
 		plugin = mergeForm.first;
 		formID = mergeForm.second;
 	}
+
 	auto form = RE::TESDataHandler::GetSingleton()->LookupForm(formID, plugin);
 	if (form == nullptr) {
 		logger::error("invalid form ID: {}", line);
