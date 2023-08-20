@@ -10,6 +10,7 @@ public:
 		RE::TESNPC* npcMatch = nullptr;
 		RE::TESRace* raceMatch = nullptr;
 		RE::TESFaction* factionMatch = nullptr;
+		RE::SEX sexMatch = RE::SEX::kNone;
 		std::uint32_t probability = 100; // 0-100
 
 		// Appearance Data

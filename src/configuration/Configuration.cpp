@@ -7,6 +7,11 @@ void ConfigurationDatabase::Initialize() {
 	logger::info("Reading config APIs...");
 	// TODO: Change this path later?
 	constexpr auto path = L"Data/SKSE/Plugins/RaceSwap";
+
+	if (!std::filesystem::exists(path)) {
+		logger::warn("No RaceSwap folder path to parse!");
+		return;
+	}
 	for (const auto& entry : std::filesystem::directory_iterator(path)) {
 		logger::info("Parsing file {}", entry.path().string().c_str());
 		std::fstream config;
@@ -59,6 +64,8 @@ AppearanceConfiguration* ConfigurationDatabase::GetConfigurationForNPC(RE::TESNP
 			}
 		}
 	}
+
+	// NPC swaps always take priority over race swaps
 
 	if (!npcSwapEntries.empty()) {
 		auto config = new AppearanceConfiguration{ 0 };

@@ -174,7 +174,7 @@ namespace utils
 	};
 
 	RE::TESRace* GetValidRaceForArmorRecursive(RE::TESObjectARMO* a_armor, RE::TESRace* a_race) {
-		if (a_race == nullptr) {
+		if (a_race == nullptr || a_armor == nullptr) {
 			return nullptr;
 		}
 		bool isValidRace = false;

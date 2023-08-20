@@ -21,9 +21,16 @@ bool IsValidEntry(std::string line) {
 	return true;
 }
 
-RE::TESForm* GetFormFromString(std::string line) {
+template <class T>
+T* GetFormFromString(std::string line) {
+	auto form = RE::TESForm::LookupByEditorID(line);
+	if (form && form->As<T>()) {
+		return form->As<T>();
+	}
+
 	if (line.find('~') == std::string::npos) {
 		logger::error("missing plugin: {}", line);
+		return nullptr;
 	}
 
 	auto plugin = line.substr(line.find('~') + 1);
@@ -34,45 +41,58 @@ RE::TESForm* GetFormFromString(std::string line) {
 		formID = mergeForm.second;
 	}
 
-	auto form = RE::TESDataHandler::GetSingleton()->LookupForm(formID, plugin);
+	form = RE::TESDataHandler::GetSingleton()->LookupForm(formID, plugin);
 	if (form == nullptr) {
 		logger::error("invalid form ID: {}", line);
+		return nullptr;
 	}
 
-	return form;
+	if (form->As<T>()) {
+		return form->As<T>();
+	}
+	return nullptr;
+}
+
+std::uint32_t GetPercentageFromString(std::string line)
+{
+	if (line.find('%') != std::string::npos) {
+		auto percent = std::stoul(line.substr(0, line.find('%')), nullptr, 10);
+		return (std::uint32_t) max(0, min(100, percent));
+	}
+
+	return (std::uint32_t) -1;
+};
+
+RE::SEX GetSexFromString(std::string line) {
+	std::transform(line.begin(), line.end(),
+		line.begin(),  // write to the same location
+		[](unsigned char c) { return (char) std::toupper(c); });
+	
+	if (line == "MALE") {
+		return RE::SEX::kMale;
+	} else if (line == "FEMALE") {
+		return RE::SEX::kFemale;
+	} else {
+		return RE::SEX::kNone;
+	}
 }
 
 bool ConstructMatchData(std::string line, ConfigurationEntry::EntryData* a_data)
 {
 	std::string match = "match=";
 	line.erase(0, match.size());
-	auto data = utils::split_string(line, '|');
-	for (auto& entry : data) {
-		if (entry.find('%') != std::string::npos) {
-			auto percent = std::stoul(entry.substr(0, entry.find('%')), nullptr, 10);
-			percent = max(0, min(100, percent));
+	auto filters = utils::split_string(line, '|');
+	for (auto& entry : filters) {
+		if (auto percent = GetPercentageFromString(entry); percent != (std::uint32_t) -1) {
 			a_data->probability = percent;
-		} else {
-			auto form = RE::TESForm::LookupByEditorID(entry);
-			form = form ? form : GetFormFromString(entry);
-			if (!form) {
-				logger::error("{} is not a valid form ID or editor ID!", entry);
-				return false;
-			}
-			if (form->Is(RE::FormType::NPC)) {
-				a_data->npcMatch = form->As<RE::TESNPC>();
-			} else if (form->Is(RE::FormType::Race)) {
-				a_data->raceMatch = form->As<RE::TESRace>();
-			} else if (form->Is(RE::FormType::Faction)) {
-				a_data->factionMatch = form->As<RE::TESFaction>();
-			} else {
-				logger::error(
-					"{} {:x} is not a valid NPC, Race or Faction!",
-					utils::GetFormEditorID(form).c_str(),
-					form->formID
-				);
-				return false;
-			}
+		} else if (auto sex = GetSexFromString(entry); sex != RE::SEX::kNone) {
+			a_data->sexMatch = sex;
+		} else if (auto npc = GetFormFromString<RE::TESNPC>(entry); npc) {
+			a_data->npcMatch = npc;
+		} else if (auto race = GetFormFromString<RE::TESRace>(entry); race) {
+			a_data->raceMatch = race;
+		} else if (auto faction = GetFormFromString<RE::TESFaction>(entry); faction) {
+			a_data->factionMatch = faction;
 		}
 	}
 
@@ -83,31 +103,14 @@ bool ConstructSwapData(std::string line, ConfigurationEntry::EntryData* a_data)
 {
 	std::string swap = "swap=";
 	line.erase(0, swap.size());
-	auto data = utils::split_string(line, '|');
-	for (auto& entry : data) {
-		if (entry.find('%') != std::string::npos) {
-			auto percent = std::stoul(entry.substr(0, entry.find('%')), nullptr, 10);
-			percent = max(0, min(100, percent));
+	auto filters = utils::split_string(line, '|');
+	for (auto& entry : filters) {
+		if (auto percent = GetPercentageFromString(entry); percent != (std::uint32_t) -1) {
 			a_data->weight = percent;
-		} else {
-			auto form = RE::TESForm::LookupByEditorID(entry);
-			form = form ? form : GetFormFromString(entry);
-			if (!form) {
-				logger::error("{} is not a valid form ID or editor ID!", entry);
-				return false;
-			}
-			if (form->Is(RE::FormType::NPC)) {
-				a_data->otherNPC = form->As<RE::TESNPC>();
-			} else if (form->Is(RE::FormType::Race)) {
-				a_data->otherRace = form->As<RE::TESRace>();
-			} else {
-				logger::error(
-					"{} {:x} is not a valid NPC or Race!",
-					utils::GetFormEditorID(form).c_str(),
-					form->formID
-				);
-				return false;
-			}
+		} else if (auto npc = GetFormFromString<RE::TESNPC>(entry); npc) {
+			a_data->otherNPC = npc;
+		} else if (auto race = GetFormFromString<RE::TESRace>(entry); race) {
+			a_data->otherRace = race;
 		}
 	}
 
@@ -162,11 +165,12 @@ ConfigurationEntry* ConfigurationEntry::ConstructNewEntry(std::string line)
 }
 
 bool ConfigurationEntry::MatchesNPC(RE::TESNPC* a_npc) {
-	bool isMatch = false;
+	bool isMatch = true;
 
-	isMatch = isMatch || (entryData.npcMatch != nullptr && entryData.npcMatch->formID == a_npc->formID);
-	isMatch = isMatch || (entryData.raceMatch != nullptr && entryData.raceMatch->formID == a_npc->race->formID);
-	isMatch = isMatch || (entryData.factionMatch != nullptr && a_npc->IsInFaction(entryData.factionMatch));
+	isMatch = isMatch && (entryData.sexMatch == RE::SEX::kNone || entryData.sexMatch == a_npc->GetSex());
+	isMatch = isMatch && (!entryData.npcMatch || entryData.npcMatch->formID == a_npc->formID);
+	isMatch = isMatch && (!entryData.raceMatch || entryData.raceMatch->formID == a_npc->race->formID);
+	isMatch = isMatch && (!entryData.factionMatch || a_npc->IsInFaction(entryData.factionMatch));
 
 	// Prevents child NPCs matching for adult swaps and vice-versa
 	isMatch = isMatch && (!entryData.otherRace || a_npc->race->IsChildRace() == entryData.otherRace->IsChildRace());

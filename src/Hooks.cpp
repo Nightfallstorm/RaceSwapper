@@ -274,6 +274,9 @@ struct LoadTESObjectARMOHook
 	static std::uint64_t thunk(RE::TESObjectARMO* a_armor, RE::TESRace* a_race, RE::BipedAnim** a_anim, bool isFemale)
 	{
 		auto race = a_race;
+		if (!a_anim || !(*a_anim)->actorRef.get().get() || !(*a_anim)->actorRef.get().get()->As<RE::Actor>()) {
+			return func(a_armor, race, a_anim, isFemale);
+		}
 		auto NPC = (*a_anim)->actorRef.get().get()->As<RE::Actor>()->GetActorBase();
 
 		logger::debug("LoadTESObjectARMOHook: Loading {} {:x} for NPC {} {:x}",
