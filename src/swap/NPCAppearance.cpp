@@ -35,12 +35,6 @@ bool NPCAppearance::RevertNewAppearance(bool updateLoadedActors) {
 
 void NPCAppearance::ApplyAppearance(NPCData* a_data)
 {
-	if (a_data->isBeastRace && !npc->HasKeywordID(constants::Keyword_IsBeastRace)) {
-		npc->AddKeyword(RE::TESForm::LookupByID(constants::Keyword_IsBeastRace)->As<RE::BGSKeyword>());
-	} else {
-		// TODO: Can't remove beast keyword from race for NPC without hook?
-	}
-
 	npc->height = a_data->height;
 	npc->weight = a_data->weight;
 	if (a_data->isFemale) {
@@ -54,6 +48,7 @@ void NPCAppearance::ApplyAppearance(NPCData* a_data)
 
 	// skeletonModel applied from hooks for race
 	// faceRelatedData applied from hooks for race
+	// isBeastRace keyword applied from hooks for race
 
 	if (npc->tintLayers) {
 		npc->tintLayers->clear();

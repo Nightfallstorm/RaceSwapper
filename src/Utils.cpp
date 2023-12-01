@@ -179,7 +179,7 @@ namespace utils
 		}
 		bool isValidRace = false;
 		for (auto addon : a_armor->armorAddons) {
-			if (addon->race == a_race || is_amongst(addon->additionalRaces, a_race)) {
+			if (addon && (addon->race == a_race || is_amongst(addon->additionalRaces, a_race))) {
 				isValidRace = true;
 				break;
 			}

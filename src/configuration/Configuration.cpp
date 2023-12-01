@@ -2,7 +2,6 @@
 #include "Configuration.h"
 #include "Utils.h"
 
-// TODO: Use merge mapper API when looking up form IDs from the config files for VR users
 void ConfigurationDatabase::Initialize() {
 	logger::info("Reading config APIs...");
 	// TODO: Change this path later?
@@ -13,6 +12,7 @@ void ConfigurationDatabase::Initialize() {
 		return;
 	}
 	for (const auto& entry : std::filesystem::directory_iterator(path)) {
+		// TODO: Certain files can crash when getting the string, add exception handling
 		logger::info("Parsing file {}", entry.path().string().c_str());
 		std::fstream config;
 		config.open(entry.path(), std::ios::in);
