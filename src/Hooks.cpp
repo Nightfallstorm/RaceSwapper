@@ -560,11 +560,11 @@ struct SaveNPC
 		auto appearance = NPCAppearance::GetNPCAppearance(a_self);
 		if (!appearance) {
 			// No appearance data means no need to revert anything
-			return;
+			return func(a_self, unkSaveStruct);
 		}
 		bool appliedSwap = appearance->isNPCSwapped;
 		if (appearance && appliedSwap) {
-			logger::info("Reverting NPC for save: {}", a_self->formID);
+			logger::info("Reverting NPC for save: {:x}", a_self->formID);
 			appearance->RevertNewAppearance(false);
 			
 		}
