@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <map>
 #include "RaceSwapUtils.h"
+#include "settings/Settings.h"
 
 namespace raceswap
 {
@@ -146,6 +147,8 @@ namespace raceswap
 		// HeadPartType , Characteristics, Color
 		using HDPTData = std::tuple<std::uint32_t, std::uint32_t, std::uint32_t>;
 
+		using HeadpartData = std::pair<RE::BGSHeadPart*, HDPTData*>;
+
 		using SkinTextureData = std::uint32_t;
 		
 		using _likelihood_t = uint8_t;
@@ -154,13 +157,11 @@ namespace raceswap
 
 		using TintType = RE::TESRace::FaceRelatedData::TintAsset::TintLayer::SkinTone;
 
-		std::vector<RE::TESRace*> valid_races;
-
-		std::unordered_map<RE::SEX, std::unordered_map<HeadPartType, std::unordered_map<RE::TESRace*, std::vector<RE::BGSHeadPart*>>>> valid_type_race_headpart_map;
-
-		std::unordered_map<RE::SEX, std::unordered_map<HeadPartType, std::unordered_map<RE::TESRace*, std::vector<HDPTData*>>>> valid_type_race_HDPTdata_map;
+		std::unordered_map<RE::SEX, std::unordered_map<HeadPartType, std::unordered_map<RE::TESRace*, std::vector<HeadpartData>>>> valid_type_race_headpartHDPT_map;
 
 		std::unordered_map<RE::SEX, std::unordered_map<RE::TESRace*, RE::TESRace::FaceRelatedData::TintAsset*>> default_skintint_for_each_race;
+
+		std::unordered_map<RE::TESRace*, std::set<RE::BGSHeadPart*>> strict_headpart_map;
 
 		std::unordered_set<RE::BGSHeadPart*> usedHeadparts;
 
@@ -192,28 +193,16 @@ namespace raceswap
 			}
 		}
 
-		inline std::vector<RE::BGSHeadPart*> GetHeadParts(HeadPartType type, RE::SEX sex, RE::TESRace* race)
+		inline std::vector<HeadpartData> GetHeadPartsData(HeadPartType type, RE::SEX sex, RE::TESRace* race)
 		{
-			if (utils::is_amongst(valid_type_race_headpart_map, sex)) {
-				if (utils::is_amongst(valid_type_race_headpart_map[sex], type)) {
-					if (utils::is_amongst(valid_type_race_headpart_map[sex][type], race)) {
-						return valid_type_race_headpart_map[sex][type][race];
+			if (utils::is_amongst(valid_type_race_headpartHDPT_map, sex)) {
+				if (utils::is_amongst(valid_type_race_headpartHDPT_map[sex], type)) {
+					if (utils::is_amongst(valid_type_race_headpartHDPT_map[sex][type], race)) {
+						return valid_type_race_headpartHDPT_map[sex][type][race];
 					}
 				}
 			}
-			return std::vector<RE::BGSHeadPart*>();
-		}
-
-		inline std::vector<HDPTData*> GetHDPTData(HeadPartType type, RE::SEX sex, RE::TESRace* race)
-		{
-			if (utils::is_amongst(valid_type_race_HDPTdata_map, sex)) {
-				if (utils::is_amongst(valid_type_race_HDPTdata_map[sex], type)) {
-					if (utils::is_amongst(valid_type_race_HDPTdata_map[sex][type], race)) {
-						return valid_type_race_HDPTdata_map[sex][type][race];
-					}
-				}
-			}
-			return std::vector<HDPTData*>();
+			return std::vector<HeadpartData>();
 		}
 
 		inline std::vector<RE::BGSHeadPart*> GetMatchedHeadPartResults(HeadPartType type, RE::SEX sex, RE::TESRace* race, RE::BGSHeadPart* hdpt) {
@@ -222,9 +211,24 @@ namespace raceswap
 
 		inline std::vector<RE::BGSHeadPart*> GetMatchedHeadPartResults(HeadPartType type, RE::SEX sex, RE::TESRace* race, HDPTData hdpt)
 		{
-			auto hdpts = GetHeadParts(type, sex, race);
-			auto hdptd = GetHDPTData(type, sex, race);
-			return raceutils::MatchHDPTData(hdpt, hdpts, hdptd);
+			auto hdpts = GetHeadPartsData(type, sex, race);
+			if (Settings::GetSingleton()->features.all(Settings::Features::kStrictHeadPartMatching)) {
+				auto entry = hdpts.begin();
+				while (entry != hdpts.end()) {
+					if (!strict_headpart_map.contains(race) || !strict_headpart_map[race].contains(entry->first)) {
+						entry = hdpts.erase(entry);
+					} else {
+						entry++;
+					}
+				}
+
+				if (hdpts.empty()) {
+					// Strict mode removed all potential matches
+					// This is bad, use the original entries instead of not swapping headparts at all
+					hdpts = GetHeadPartsData(type, sex, race);
+				}
+			}
+			return raceutils::MatchHDPTData(hdpt, hdpts);
 		}
 
 		inline std::vector<RE::BGSTextureSet*> GetMatchedSkinTextureResults(RE::SEX sex, RE::TESRace* race, RE::BGSTextureSet* skindata)
@@ -288,6 +292,7 @@ namespace raceswap
 		DataBase(bool _dumplists): dumplists(_dumplists)
 		{
 			_initialize();
+			dump();
 		}
 
 		void _initialize() {
@@ -299,8 +304,8 @@ namespace raceswap
 
 			// Populate NPC used headparsts
 			for (auto const& [formid, form] : *map) {
-				//To do
-				if ((formid & 0xFF000000) == 0xFF000000)
+				//To do: Parse dynamic forms?
+				if (form->IsDynamicForm())
 					continue;
 
 				if (form->Is(RE::FormType::NPC)) {
@@ -309,83 +314,156 @@ namespace raceswap
 
 					for (std::uint8_t i = 0; i < numHeadParts; i++) {
 						auto& headpart = headparts[i];
-						usedHeadparts.emplace(headpart);
+						usedHeadparts.insert(headpart);
 						for (auto extra : headpart->extraParts) {
-							usedHeadparts.emplace(extra);
+							usedHeadparts.insert(extra);
 						}
 					}
 				}
 			}
 			//Categorizing head parts and calculate their discriptors (HDPTData) for matching
 			for (auto const& [formid, form] : *map) {
-				//To do
-				if ((formid & 0xFF000000) == 0xFF000000)
+				//To do: Parse dynamic forms?
+				if (form->IsDynamicForm())
 					continue;
 
-				if (form->Is(RE::FormType::HeadPart)) {
-					auto hdpt = form->As<RE::BGSHeadPart>();
-
-					auto _append_to_list_male = [hdpt, this](RE::TESForm& form) { 
-						valid_type_race_headpart_map[RE::SEX::kMale][hdpt->type.get()][form.As<RE::TESRace>()].push_back(hdpt);
-						valid_type_race_HDPTdata_map[RE::SEX::kMale][hdpt->type.get()][form.As<RE::TESRace>()].push_back(FindOrCalculateHDPTData(hdpt));
-						return RE::BSContainer::ForEachResult::kContinue;
-					};
-					auto _append_to_list_female = [hdpt, this](RE::TESForm& form) {
-						valid_type_race_headpart_map[RE::SEX::kFemale][hdpt->type.get()][form.As<RE::TESRace>()].push_back(hdpt);
-						valid_type_race_HDPTdata_map[RE::SEX::kFemale][hdpt->type.get()][form.As<RE::TESRace>()].push_back(FindOrCalculateHDPTData(hdpt));
-						return RE::BSContainer::ForEachResult::kContinue;
-					};
-
-					if (IsValidHeadPart(hdpt)) {
-						if (hdpt->flags.any(RE::BGSHeadPart::Flag::kMale)) {
-							hdpt->validRaces->ForEachForm(_append_to_list_male);
-						}
-						if (hdpt->flags.any(RE::BGSHeadPart::Flag::kFemale)) {
-							hdpt->validRaces->ForEachForm(_append_to_list_female);
-						}
-					}
-				} else if (form->Is(RE::FormType::Race)) {
-					if (form->As<RE::TESRace>()->faceRelatedData[RE::SEX::kMale] != nullptr && 
-						form->As<RE::TESRace>()->faceRelatedData[RE::SEX::kMale]->tintMasks != nullptr) {
-						// TODO: Could we support animal races with no face related data?
-						// TODO: We could make this cleaner/simpler
-						valid_races.push_back(form->As<RE::TESRace>());
-					}
+				switch (form->GetFormType()) {
+					case RE::FormType::HeadPart:
+						parseHeadpart(form->As<RE::BGSHeadPart>());
+						break;
+					case RE::FormType::Race:
+						parseRace(form->As<RE::TESRace>());	
+						break;
+					case RE::FormType::NPC:
+						parseNPC(form->As<RE::TESNPC>());
+						break;
 				}
 			}
 
-			//Collecting other assets
-			for (auto race : valid_races) {
-
-				auto race_male_tints = race->faceRelatedData[RE::SEX::kMale]->tintMasks;
-
-				auto race_female_tints = race->faceRelatedData[RE::SEX::kFemale]->tintMasks;
-
-				for (auto race_tint : *race_male_tints) {
-					if (race_tint->texture.skinTone == DataBase::TintType::kSkinTone) {
-						this->default_skintint_for_each_race[RE::SEX::kMale][race] = race_tint;
-						break;
-					}
-				}
-				
-				if (!this->default_skintint_for_each_race[RE::SEX::kMale][race]) {
-					logger::info("  Race: {} has no skin tone tint layer for male.", utils::GetFormEditorID(race));
-				}
-
-				for (auto race_tint : *race_female_tints) {
-					if (race_tint->texture.skinTone == DataBase::TintType::kSkinTone) {
-						this->default_skintint_for_each_race[RE::SEX::kFemale][race] = race_tint;
-						break;
-					}
-				}
-
-				if (!this->default_skintint_for_each_race[RE::SEX::kFemale][race]) {
-					logger::info("  Race: {} has no skin tone tint layer for female.", utils::GetFormEditorID(race));
-				}
-			}
 			lock.get().UnlockForRead();
 
 			logger::info("Finished categorizing...");
+		}
+
+		void parseNPC(RE::TESNPC* a_npc) {
+			auto& race = a_npc->race;
+
+			for (int i = 0; i < a_npc->numHeadParts; i++) {
+				if (!a_npc->headParts || !a_npc->headParts[i]) {
+					continue;
+				}
+
+				if (!strict_headpart_map.contains(race)) {
+					strict_headpart_map.emplace(race, std::set<RE::BGSHeadPart*>());
+				}
+				strict_headpart_map[race].insert(a_npc->headParts[i]);
+			}
+		}
+
+		void parseHeadpart(RE::BGSHeadPart* a_headpart) {
+			auto _append_to_list_male = [a_headpart, this](RE::TESForm& form) {
+				valid_type_race_headpartHDPT_map[RE::SEX::kMale][a_headpart->type.get()][form.As<RE::TESRace>()].push_back(
+					{ a_headpart, FindOrCalculateHDPTData(a_headpart) }
+				);
+				return RE::BSContainer::ForEachResult::kContinue;
+			};
+			auto _append_to_list_female = [a_headpart, this](RE::TESForm& form) {
+				valid_type_race_headpartHDPT_map[RE::SEX::kFemale][a_headpart->type.get()][form.As<RE::TESRace>()].push_back(
+					{ a_headpart, FindOrCalculateHDPTData(a_headpart) }
+				);
+				return RE::BSContainer::ForEachResult::kContinue;
+			};
+
+			if (IsValidHeadPart(a_headpart)) {
+				if (a_headpart->flags.any(RE::BGSHeadPart::Flag::kMale)) {
+					a_headpart->validRaces->ForEachForm(_append_to_list_male);
+				}
+				if (a_headpart->flags.any(RE::BGSHeadPart::Flag::kFemale)) {
+					a_headpart->validRaces->ForEachForm(_append_to_list_female);
+				}
+			}
+		}
+
+		void parseRace(RE::TESRace* a_race) {
+			// TODO: Could we support animal races with no face related data?
+			// TODO: We could make this cleaner/simpler
+			if (a_race->faceRelatedData[RE::SEX::kMale] == nullptr || 
+				a_race->faceRelatedData[RE::SEX::kMale]->tintMasks == nullptr) {
+				return;
+			}
+
+			if (!strict_headpart_map.contains(a_race)) {
+				strict_headpart_map.emplace(a_race, std::set<RE::BGSHeadPart*>());
+			}
+
+			for (auto headpart : *a_race->faceRelatedData[RE::SEX::kMale]->headParts) {
+				strict_headpart_map[a_race].insert(headpart);
+			}
+
+			for (auto headpart : *a_race->faceRelatedData[RE::SEX::kFemale]->headParts) {
+				strict_headpart_map[a_race].insert(headpart);
+			}
+
+			auto race_male_tints = a_race->faceRelatedData[RE::SEX::kMale]->tintMasks;
+
+			auto race_female_tints = a_race->faceRelatedData[RE::SEX::kFemale]->tintMasks;
+
+			for (auto race_tint : *race_male_tints) {
+				if (race_tint->texture.skinTone == DataBase::TintType::kSkinTone) {
+					this->default_skintint_for_each_race[RE::SEX::kMale][a_race] = race_tint;
+					break;
+				}
+			}
+
+			if (!this->default_skintint_for_each_race[RE::SEX::kMale][a_race]) {
+				logger::info("  Race: {} has no skin tone tint layer for male.", utils::GetFormEditorID(a_race));
+			}
+
+			for (auto race_tint : *race_female_tints) {
+				if (race_tint->texture.skinTone == DataBase::TintType::kSkinTone) {
+					this->default_skintint_for_each_race[RE::SEX::kFemale][a_race] = race_tint;
+					break;
+				}
+			}
+
+			if (!this->default_skintint_for_each_race[RE::SEX::kFemale][a_race]) {
+				logger::info("  Race: {} has no skin tone tint layer for female.", utils::GetFormEditorID(a_race));
+			}
+		}
+
+		void dump() {
+#ifndef _DEBUG
+			return;
+#endif
+			logger::info("Dumping strict headpart map");
+			for (auto& [race, headparts] : strict_headpart_map) {
+				logger::info("	Headparts for {} {:x}", race->formEditorID, race->formID);
+				for (auto headpart: headparts) {
+					logger::info("		{} {:x}", headpart->formEditorID, headpart->formID);
+				}
+			}
+
+			logger::info("Dumping valid headpart map");
+			for (auto& [sex, headpartMap] : valid_type_race_headpartHDPT_map) {
+				auto sexString = "N/A";
+				if (sex == RE::SEX::kMale) {
+					sexString = "MALE";
+				} else if (sex == RE::SEX::kFemale) {
+					sexString = "FEMALE";
+				}
+				logger::info("	SEX: {}", sexString);
+				for (auto& [type, raceMap] : headpartMap) {
+					logger::info("		TYPE: {}", type);
+					for (auto& [race, headparts] : raceMap) {
+						logger::info("			RACE: {} {:x}", race->formEditorID, race->formID);
+						for (auto& headpart : headparts) {
+							logger::info("				HEADPART: {} {:x} HDPT: {} {} {}", 
+								headpart.first->formEditorID, headpart.first->formID,
+								std::get<0>(*headpart.second), std::get<1>(*headpart.second), std::get<2>(*headpart.second));
+						}
+					}
+				}
+			}
 		}
 
 		std::unordered_map<RE::BGSHeadPart*, HDPTData*> _hdptd_cache;

@@ -11,7 +11,7 @@ public:
 	{
 		kNone = 0,
 		kPlaythroughRandomization = 1 << 0,
-
+		kStrictHeadPartMatching = 2 << 0,
 	};
 
 	stl::enumeration<Features, std::uint32_t> features;

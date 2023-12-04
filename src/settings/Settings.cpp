@@ -19,5 +19,7 @@ void Settings::Load()
 
     get_value(ini, Features::kPlaythroughRandomization, false, section, "bRandomizePerPlaythrough", "; In each playthough, RaceSwapper will alter NPCs differently, giving a different appearance");
 
+	get_value(ini, Features::kStrictHeadPartMatching, false, section, "bStrictHeadParts", "; RaceSwapper will be stricter when choosing valid headparts for NPCs to reduces chances of using the wrong headpart (eg Khajiit head when swapping to a nord race). This can reduce variety of headpart distribution as a result!");
+
 	ini.SaveFile(path);
 }

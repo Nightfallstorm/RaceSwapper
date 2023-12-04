@@ -54,20 +54,16 @@ namespace raceutils
 
 		return likelihood;
 	}
-	std::vector<RE::BGSHeadPart*> MatchHDPTData(HDPTData dst, std::vector<RE::BGSHeadPart*> src_hdpts, std::vector<HDPTData*> src_data)
+	std::vector<RE::BGSHeadPart*> MatchHDPTData(HDPTData dst, std::vector<HeadpartData> src_hdpts)
 	{
-		if (src_hdpts.size() != src_data.size()) {
-			return std::vector<RE::BGSHeadPart*>();
-		}
-
 		std::map<_likelihood_t, std::vector<RE::BGSHeadPart*>> likelihood_map;
 
 		_likelihood_t max = 0;
-		for (int i = 0; i < src_data.size(); i++) {
-			auto likelihood = _match(dst, *(src_data[i]));
+		for (int i = 0; i < src_hdpts.size(); i++) {
+			auto likelihood = _match(dst, *(src_hdpts[i].second));
 			if (likelihood > max)
 				max = likelihood;
-			likelihood_map[likelihood].push_back(src_hdpts[i]);
+			likelihood_map[likelihood].push_back(src_hdpts[i].first);
 		}
 		return likelihood_map[max];
 	}
@@ -101,6 +97,7 @@ namespace raceutils
 
 		return likelihood;
 	}
+
 	std::vector<RE::BGSTextureSet*> MatchSkinTextureData(SkinTextureData dst, std::vector<RE::BGSTextureSet*> src_hdpts, std::vector<SkinTextureData> src_data)
 	{
 		if (src_hdpts.size() != src_data.size()) {

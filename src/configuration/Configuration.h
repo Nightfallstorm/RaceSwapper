@@ -26,6 +26,10 @@ match=NordRace|100% swap=ArgonianRace|100  # This entry very likely to win again
 
 */
 
+// TODO: Add exclusions for headparts to never be included? (Needs consideration)
+// TODO: Add exclusions for headparts to never be excluded from strict mode? (Needs consideration)
+// TODO: Add exclusions to prevent certain NPCs being swapped? (Needs consideration)
+
 class ConfigurationDatabase
 {
 public:
