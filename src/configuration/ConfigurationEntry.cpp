@@ -53,6 +53,11 @@ T* GetFormFromString(std::string line) {
 	return nullptr;
 }
 
+RE::TESForm* GetFormFromString(std::string line)
+{
+	return GetFormFromString<RE::TESForm>(line);
+}
+
 std::uint32_t GetPercentageFromString(std::string line)
 {
 	if (line.find('%') != std::string::npos) {
@@ -87,12 +92,12 @@ bool ConstructMatchData(std::string line, ConfigurationEntry::EntryData* a_data)
 			a_data->probability = percent;
 		} else if (auto sex = GetSexFromString(entry); sex != RE::SEX::kNone) {
 			a_data->sexMatch = sex;
-		} else if (auto npc = GetFormFromString<RE::TESNPC>(entry); npc) {
-			a_data->npcMatch = npc;
-		} else if (auto race = GetFormFromString<RE::TESRace>(entry); race) {
-			a_data->raceMatch = race;
-		} else if (auto faction = GetFormFromString<RE::TESFaction>(entry); faction) {
-			a_data->factionMatch = faction;
+		} else if (auto form = GetFormFromString(entry); form && form->Is(RE::FormType::NPC)) {
+			a_data->npcMatch = form->As<RE::TESNPC>();
+		} else if (form && form->Is(RE::FormType::Race)) {
+			a_data->raceMatch = form->As<RE::TESRace>();
+		} else if (form && form->Is(RE::FormType::Faction)) {
+			a_data->factionMatch = form->As<RE::TESFaction>();
 		}
 	}
 
@@ -107,10 +112,10 @@ bool ConstructSwapData(std::string line, ConfigurationEntry::EntryData* a_data)
 	for (auto& entry : filters) {
 		if (auto percent = GetPercentageFromString(entry); percent != (std::uint32_t) -1) {
 			a_data->weight = percent;
-		} else if (auto npc = GetFormFromString<RE::TESNPC>(entry); npc) {
-			a_data->otherNPC = npc;
-		} else if (auto race = GetFormFromString<RE::TESRace>(entry); race) {
-			a_data->otherRace = race;
+		} else if (auto form = GetFormFromString(entry); form && form->Is(RE::FormType::NPC)) {
+			a_data->otherNPC = form->As<RE::TESNPC>();
+		} else if (form && form->Is(RE::FormType::Race)) {
+			a_data->otherRace = form->As<RE::TESRace>();
 		}
 	}
 
