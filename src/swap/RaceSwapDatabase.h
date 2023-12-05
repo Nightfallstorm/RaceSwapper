@@ -157,7 +157,7 @@ namespace raceswap
 
 		using TintType = RE::TESRace::FaceRelatedData::TintAsset::TintLayer::SkinTone;
 
-		std::unordered_map<RE::SEX, std::unordered_map<HeadPartType, std::unordered_map<RE::TESRace*, std::vector<HeadpartData>>>> valid_type_race_headpartHDPT_map;
+		std::unordered_map<RE::SEX, std::unordered_map<HeadPartType, std::unordered_map<RE::TESRace*, std::vector<HeadpartData>>>> valid_type_race_headpartdata_map;
 
 		std::unordered_map<RE::SEX, std::unordered_map<RE::TESRace*, RE::TESRace::FaceRelatedData::TintAsset*>> default_skintint_for_each_race;
 
@@ -195,10 +195,10 @@ namespace raceswap
 
 		inline std::vector<HeadpartData> GetHeadPartsData(HeadPartType type, RE::SEX sex, RE::TESRace* race)
 		{
-			if (utils::is_amongst(valid_type_race_headpartHDPT_map, sex)) {
-				if (utils::is_amongst(valid_type_race_headpartHDPT_map[sex], type)) {
-					if (utils::is_amongst(valid_type_race_headpartHDPT_map[sex][type], race)) {
-						return valid_type_race_headpartHDPT_map[sex][type][race];
+			if (utils::is_amongst(valid_type_race_headpartdata_map, sex)) {
+				if (utils::is_amongst(valid_type_race_headpartdata_map[sex], type)) {
+					if (utils::is_amongst(valid_type_race_headpartdata_map[sex][type], race)) {
+						return valid_type_race_headpartdata_map[sex][type][race];
 					}
 				}
 			}
@@ -292,6 +292,7 @@ namespace raceswap
 		DataBase(bool _dumplists): dumplists(_dumplists)
 		{
 			_initialize();
+			sort();
 			dump();
 		}
 
@@ -362,13 +363,13 @@ namespace raceswap
 
 		void parseHeadpart(RE::BGSHeadPart* a_headpart) {
 			auto _append_to_list_male = [a_headpart, this](RE::TESForm& form) {
-				valid_type_race_headpartHDPT_map[RE::SEX::kMale][a_headpart->type.get()][form.As<RE::TESRace>()].push_back(
+				valid_type_race_headpartdata_map[RE::SEX::kMale][a_headpart->type.get()][form.As<RE::TESRace>()].push_back(
 					{ a_headpart, FindOrCalculateHDPTData(a_headpart) }
 				);
 				return RE::BSContainer::ForEachResult::kContinue;
 			};
 			auto _append_to_list_female = [a_headpart, this](RE::TESForm& form) {
-				valid_type_race_headpartHDPT_map[RE::SEX::kFemale][a_headpart->type.get()][form.As<RE::TESRace>()].push_back(
+				valid_type_race_headpartdata_map[RE::SEX::kFemale][a_headpart->type.get()][form.As<RE::TESRace>()].push_back(
 					{ a_headpart, FindOrCalculateHDPTData(a_headpart) }
 				);
 				return RE::BSContainer::ForEachResult::kContinue;
@@ -437,6 +438,21 @@ namespace raceswap
 			}
 		}
 
+		void sort() {
+			for (auto& [sex, typeMap] : valid_type_race_headpartdata_map) {
+				for (auto& [type, raceMap] : typeMap) {
+					for (auto& [race, headparts] : raceMap) {
+						// Sort headparts by formID without form index
+						std::sort(headparts.begin(), headparts.end(), [](raceutils::HeadpartData &a_first, raceutils::HeadpartData &a_second) {
+							std::uint32_t firstID = a_first.first->formID & 0x00FFFFFF;
+							std::uint32_t secondID = a_second.first->formID & 0x00FFFFFF;
+							return firstID < secondID;	
+						});	
+					}
+				}
+			}
+		}
+
 		void dump() {
 #ifndef _DEBUG
 			return;
@@ -450,7 +466,7 @@ namespace raceswap
 			}
 
 			logger::info("Dumping valid headpart map");
-			for (auto& [sex, headpartMap] : valid_type_race_headpartHDPT_map) {
+			for (auto& [sex, headpartMap] : valid_type_race_headpartdata_map) {
 				auto sexString = "N/A";
 				if (sex == RE::SEX::kMale) {
 					sexString = "MALE";
