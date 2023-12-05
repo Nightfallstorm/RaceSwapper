@@ -396,12 +396,18 @@ namespace raceswap
 				strict_headpart_map.emplace(a_race, std::set<RE::BGSHeadPart*>());
 			}
 
-			for (auto headpart : *a_race->faceRelatedData[RE::SEX::kMale]->headParts) {
-				strict_headpart_map[a_race].insert(headpart);
-			}
+			if (a_race->faceRelatedData[RE::SEX::kMale]->headParts && a_race->faceRelatedData[RE::SEX::kFemale]->headParts) {
+				for (auto headpart : *a_race->faceRelatedData[RE::SEX::kMale]->headParts) {
+					if (headpart) {
+						strict_headpart_map[a_race].insert(headpart);
+					}
+				}
 
-			for (auto headpart : *a_race->faceRelatedData[RE::SEX::kFemale]->headParts) {
-				strict_headpart_map[a_race].insert(headpart);
+				for (auto headpart : *a_race->faceRelatedData[RE::SEX::kFemale]->headParts) {
+					if (headpart) {
+						strict_headpart_map[a_race].insert(headpart);
+					}
+				}
 			}
 
 			auto race_male_tints = a_race->faceRelatedData[RE::SEX::kMale]->tintMasks;
@@ -409,7 +415,7 @@ namespace raceswap
 			auto race_female_tints = a_race->faceRelatedData[RE::SEX::kFemale]->tintMasks;
 
 			for (auto race_tint : *race_male_tints) {
-				if (race_tint->texture.skinTone == DataBase::TintType::kSkinTone) {
+				if (race_tint && race_tint->texture.skinTone == DataBase::TintType::kSkinTone) {
 					this->default_skintint_for_each_race[RE::SEX::kMale][a_race] = race_tint;
 					break;
 				}
@@ -420,7 +426,7 @@ namespace raceswap
 			}
 
 			for (auto race_tint : *race_female_tints) {
-				if (race_tint->texture.skinTone == DataBase::TintType::kSkinTone) {
+				if (race_tint && race_tint->texture.skinTone == DataBase::TintType::kSkinTone) {
 					this->default_skintint_for_each_race[RE::SEX::kFemale][a_race] = race_tint;
 					break;
 				}
