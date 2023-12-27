@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.22)
 set(NAME "RaceSwapper")
 set(VERSION 0.1.0)
 
@@ -11,18 +11,18 @@ macro(set_from_environment VARIABLE)
 endmacro()
 
 set_from_environment(VCPKG_ROOT)
+add_compile_definitions(SKYRIM)
+set(CommonLibPath "extern/CommonLibSSE-NG")
 set(CommonLibName "CommonLibSSE")
-set_from_environment(Skyrim64Path)
-set(SkyrimPath ${Skyrim64Path})
-set(SkyrimVersion "Skyrim SSE")
+set(GameVersion "Skyrim")
 
 message(
 	STATUS
-	"Building ${NAME} ${VERSION}."
+	"Building ${NAME} ${VERSION} for ${SkyrimVersion} at ${SkyrimPath} with ${CommonLibName} at ${CommonLibPath}."
 )
 
 if (DEFINED VCPKG_ROOT)
-	set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
+	set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
 	set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "")
 else ()
 	message(
@@ -84,10 +84,14 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STR
 
 # ---- Dependencies ----
 
-find_package(CommonLibSSE CONFIG REQUIRED)
-
-find_package(robin_hood CONFIG REQUIRED)
-find_path(SIMPLEINI_INCLUDE_DIRS "ConvertUTF.c")
+if (DEFINED CommonLibPath AND NOT ${CommonLibPath} STREQUAL "" AND IS_DIRECTORY ${CommonLibPath})
+	add_subdirectory(${CommonLibPath} ${CommonLibName} EXCLUDE_FROM_ALL)
+else ()
+	message(
+		FATAL_ERROR
+		"Variable ${CommonLibName}Path is not set."
+	)
+endif()
 
 # ---- Add source files ----
 
@@ -143,9 +147,8 @@ target_include_directories(
 
 target_link_libraries(
 	${PROJECT_NAME}
-	PRIVATE
+	PUBLIC
 		${CommonLibName}::${CommonLibName}
-		robin_hood::robin_hood
 )
 
 target_precompile_headers(
