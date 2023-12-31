@@ -13,6 +13,12 @@ public:
 		RE::SEX sexMatch = RE::SEX::kNone;
 		std::uint32_t probability = 100; // 0-100
 
+		// Exclude Data
+		std::set<RE::TESNPC*> excludedNPCs;
+		std::set<RE::TESRace*> excludedRaces;
+		std::set<RE::TESFaction*> excludedFactions;
+		std::set<RE::SEX> excludedSexes;
+
 		// Appearance Data
 		RE::TESNPC* otherNPC = nullptr;
 		RE::TESRace* otherRace = nullptr;

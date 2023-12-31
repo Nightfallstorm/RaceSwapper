@@ -18,6 +18,10 @@ bool IsValidEntry(std::string line) {
 		return false;
 	}
 
+	if (line.find("exclude=") != std::string::npos && line.find("exclude=") < line.find("swap=")) {
+		logger::error("line: \"{}\" has an exclude line that is before swap! The order must be 'race=... swap=... exclude=...", line);
+	}
+
 	return true;
 }
 
@@ -80,6 +84,28 @@ RE::SEX GetSexFromString(std::string line) {
 	} else {
 		return RE::SEX::kNone;
 	}
+}
+
+bool ConstructExcludesData(std::string line, ConfigurationEntry::EntryData* a_data) {
+	if (line == "") {
+		return true;
+	}
+	std::string match = "exclude=";
+	line.erase(0, match.size());
+	auto filters = utils::split_string(line, '|');
+	for (auto& entry : filters) {
+		if (auto sex = GetSexFromString(entry); sex != RE::SEX::kNone) {
+			a_data->excludedSexes.insert(sex);
+		} else if(auto form = GetFormFromString(entry); form && form->Is(RE::FormType::NPC)) {
+			a_data->excludedNPCs.insert(form->As<RE::TESNPC>());
+		} else if (form && form->Is(RE::FormType::Race)) {
+			a_data->excludedRaces.insert(form->As<RE::TESRace>());
+		} else if (form && form->Is(RE::FormType::Faction)) {
+			a_data->excludedFactions.insert(form->As<RE::TESFaction>());
+		}
+	}
+
+	return true;
 }
 
 bool ConstructMatchData(std::string line, ConfigurationEntry::EntryData* a_data)
@@ -148,13 +174,24 @@ ConfigurationEntry* ConfigurationEntry::ConstructNewEntry(std::string line)
 
 	// TODO: Make this case insensitive
 	auto swapIndex = parsingLine.find("swap=");
+	auto excludeIndex = parsingLine.find("exclude=");
 
 	auto matchLine = parsingLine.substr(0, swapIndex);
-	auto swapLine = parsingLine.substr(swapIndex);
+	std::string swapLine;
+	std::string excludeLine;
+	if (excludeIndex == std::string::npos) {
+		swapLine = parsingLine.substr(swapIndex);
+		excludeLine = "";
+	} else {
+		swapLine = parsingLine.substr(swapIndex, excludeIndex - swapIndex);
+		excludeLine = parsingLine.substr(excludeIndex);
+	}
 
 	bool success = false;
 	try {
-		success = ConstructMatchData(matchLine, &entryData) && ConstructSwapData(swapLine, &entryData); 
+		success = ConstructMatchData(matchLine, &entryData) &&
+			ConstructSwapData(swapLine, &entryData) &&
+			ConstructExcludesData(excludeLine, &entryData); 
 	} catch (...) {
 		logger::error("line: \"{}\" is invalid", line);
 	}
@@ -176,6 +213,14 @@ bool ConfigurationEntry::MatchesNPC(RE::TESNPC* a_npc) {
 	isMatch = isMatch && (!entryData.npcMatch || entryData.npcMatch->formID == a_npc->formID);
 	isMatch = isMatch && (!entryData.raceMatch || entryData.raceMatch->formID == a_npc->race->formID);
 	isMatch = isMatch && (!entryData.factionMatch || a_npc->IsInFaction(entryData.factionMatch));
+
+	// If NPC matches exclusions, do not match
+	isMatch = isMatch && !entryData.excludedNPCs.contains(a_npc);
+	isMatch = isMatch && !entryData.excludedRaces.contains(a_npc->race);
+	isMatch = isMatch && !entryData.excludedSexes.contains(a_npc->GetSex());
+	for (auto excludedFaction: entryData.excludedFactions) {
+		isMatch = isMatch && !a_npc->IsInFaction(excludedFaction);
+	}
 
 	// Prevents child NPCs matching for adult swaps and vice-versa
 	isMatch = isMatch && (!entryData.otherRace || a_npc->race->IsChildRace() == entryData.otherRace->IsChildRace());
