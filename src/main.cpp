@@ -4,6 +4,7 @@
 #include "settings/Settings.h"
 #include "swap/RaceSwapDatabase.h"
 #include "MergeMapperPluginAPI.h"
+#include "swap/RaceSwapDatabase.h"
 
 void MessageInterface(SKSE::MessagingInterface::Message* msg) {
 	switch (msg->type) {
@@ -27,6 +28,10 @@ void MessageInterface(SKSE::MessagingInterface::Message* msg) {
 		{
 			// TODO: Add console commands to revert appearance
 			ConfigurationDatabase::GetSingleton()->Initialize();
+			auto lock = RE::TESForm::GetAllForms().second.get();
+			lock.LockForRead();
+			raceswap::DataBase::GetSingleton();
+			lock.UnlockForRead();
 			hook::InstallHooks();
 			break;
 		}
