@@ -28,10 +28,7 @@ void MessageInterface(SKSE::MessagingInterface::Message* msg) {
 		{
 			// TODO: Add console commands to revert appearance
 			ConfigurationDatabase::GetSingleton()->Initialize();
-			auto lock = RE::TESForm::GetAllForms().second.get();
-			lock.LockForRead();
 			raceswap::DataBase::GetSingleton();
-			lock.UnlockForRead();
 			hook::InstallHooks();
 			break;
 		}
