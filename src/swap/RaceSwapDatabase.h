@@ -348,6 +348,9 @@ namespace raceswap
 
 		void parseNPC(RE::TESNPC* a_npc) {
 			auto& race = a_npc->race;
+			if (!race) {
+				return;
+			}
 
 			for (int i = 0; i < a_npc->numHeadParts; i++) {
 				if (!a_npc->headParts || !a_npc->headParts[i]) {
