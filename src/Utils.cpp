@@ -11,11 +11,15 @@ namespace utils
 		if (!a_form_seed) {
 			return std::string();
 		}
-		auto rawFormID = std::to_string(a_form_seed->GetFormID() & 0x00FFFFFF);
 
 		auto fileName = "DynamicForm";
 		if (!a_form_seed->IsDynamicForm()) {
 			fileName = a_form_seed->GetFile()->fileName;
+		}
+
+		auto rawFormID = std::to_string(a_form_seed->GetFormID() & 0x00FFFFFF);
+		if (!a_form_seed->IsDynamicForm() && a_form_seed->GetFile()->IsLight()) {
+			rawFormID = std::to_string(a_form_seed->GetFormID() & 0x00000FFF);
 		}
 
 		std::string playthroughID = ""; 
