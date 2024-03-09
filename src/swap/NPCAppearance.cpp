@@ -163,6 +163,7 @@ static bool IsNPCValid(RE::TESNPC* a_npc)
 
 // Gets or create a new NPC appearance. Will be null if NPC has no altered appearance to take
 NPCAppearance* NPCAppearance::GetOrCreateNPCAppearance(RE::TESNPC* a_npc) {
+	auto faceNPC = a_npc->GetRootFaceNPC();
 	if (!IsNPCValid(a_npc)) {
 		return nullptr;
 	}
@@ -172,20 +173,23 @@ NPCAppearance* NPCAppearance::GetOrCreateNPCAppearance(RE::TESNPC* a_npc) {
 		return appearanceMap.at(a_npc->formID);
 	}
 
-	auto config = ConfigurationDatabase::GetSingleton()->GetConfigurationForNPC(a_npc);
+	// Template actors are based on a face NPC. Always use face NPC as original appearance to get configuration for
+	auto config = ConfigurationDatabase::GetSingleton()->GetConfigurationForNPC(faceNPC); 
 
 	if (config == nullptr) {
+		logger::debug("No appearance config for {:x} face NPC: {:x}", a_npc->formID, faceNPC->formID);
 		appearanceMapLock.unlock();
 		return nullptr;
 	}
 
-	logger::info("Creating new appearance for {:x}", a_npc->formID);
+	logger::info("Creating new appearance for {:x}. Face NPC used for appearance: {:x}", a_npc->formID, faceNPC->formID);
 	NPCAppearance* appearance = new NPCAppearance(a_npc, config);
 	appearanceMap.insert(std::pair(a_npc->formID, appearance));
 	appearanceMapLock.unlock();
 	return appearance;
 };
 
+// Templated actors rely on the face NPC for swaps, so our appearance data will be based on the faceNPC as well
 NPCAppearance* NPCAppearance::GetNPCAppearance(RE::TESNPC* a_npc) {
 	appearanceMapLock.lock();
 	if (appearanceMap.contains(a_npc->formID)) {
