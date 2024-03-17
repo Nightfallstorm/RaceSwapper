@@ -80,9 +80,9 @@ struct GetBodyPartDataHook
 		REL::Relocation<std::uintptr_t> load3DTarget{ RELOCATION_ID(36198, 37177), REL::VariantOffset(0x5A, 0x57, 0x5A) };
 		// Remove call to replace RCX (actor) with actor's race. This lets our hook have access to the actor data
 		if (REL::Module::IsAE()) {
-			byte useActorInstructions[] = { 0x48, 0x89, 0xd9 };
-			REL::safe_fill(load3DTarget.address() - 0x14, REL::NOP, 0x7);
-			REL::safe_write(load3DTarget.address() - 0x14, useActorInstructions, 0x3);
+			byte useActorInstructions[] = { 0x48, 0x89, 0xd9 }; // mov rcx, rbx
+			REL::safe_fill(load3DTarget.address() - 0x3, REL::NOP, 0x3);
+			REL::safe_write(load3DTarget.address() - 0x3, useActorInstructions, 0x3);
 		} else {
 			// SE/VR
 			byte useActorInstructions[] = { 0x48, 0x89, 0xF1 }; 
