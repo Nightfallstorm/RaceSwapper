@@ -5,6 +5,7 @@
 #include "swap/RaceSwapDatabase.h"
 #include "MergeMapperPluginAPI.h"
 #include "swap/RaceSwapDatabase.h"
+#include "Papyrus.h"
 
 void MessageInterface(SKSE::MessagingInterface::Message* msg) {
 	switch (msg->type) {
@@ -89,6 +90,8 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 	SKSE::Init(a_skse);
 	auto messaging = SKSE::GetMessagingInterface();
 	messaging->RegisterListener(MessageInterface);
+	auto papyrusInterface = SKSE::GetPapyrusInterface();
+	papyrusInterface->Register(Papyrus::Bind);
 	logger::info("Loaded Plugin");
 	return true;
 }

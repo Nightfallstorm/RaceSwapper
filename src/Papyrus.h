@@ -6,7 +6,7 @@ namespace Papyrus
 	using VM = RE::BSScript::Internal::VirtualMachine;
 	using StackID = RE::VMStackID;
 
-	inline constexpr auto script = "TBD"sv;
+	inline constexpr auto script = "RaceSwapper"sv;
 
 	bool Bind(VM* a_vm);
 }
