@@ -51,9 +51,9 @@ public:
 
 	bool isNPCSwapped = false;
 
-	bool ApplyNewAppearance(bool updateLoadedActors);
+	bool ApplyNewAppearance(bool updateLoadedActors = false);
 
-	bool RevertNewAppearance(bool updateLoadedActors);
+	bool RevertNewAppearance(bool updateLoadedActors = false);
 
 	static NPCAppearance* GetOrCreateNPCAppearance(RE::TESNPC* a_npc);
 

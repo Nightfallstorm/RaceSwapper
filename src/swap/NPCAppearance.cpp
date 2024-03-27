@@ -7,7 +7,17 @@
 #include "Utils.h"
 
 static void UpdateLoadedActors(RE::TESNPC* a_npc) {
-	// TODO: Update loaded actors
+	for (auto actorHandle : RE::ProcessLists::GetSingleton()->highActorHandles) {
+		RE::Actor* actor = actorHandle.get().get();
+		if (actor && actor->GetActorBase() == a_npc && actor->Is3DLoaded()) {
+			logger::info("Updated loaded actor {:x} NPC {}{:x}",
+				actor->formID,
+				utils::GetFormEditorID(a_npc),
+				a_npc->formID
+			);
+			actor->GetActorRuntimeData().currentProcess->Update3DModel(actor);
+		}
+	}
 }
 
 bool NPCAppearance::ApplyNewAppearance(bool updateLoadedActors)
@@ -17,18 +27,25 @@ bool NPCAppearance::ApplyNewAppearance(bool updateLoadedActors)
 	}
 
 	ApplyAppearance(&alteredNPCData);
-	UpdateLoadedActors(npc);
+	if (updateLoadedActors) {
+		UpdateLoadedActors(npc);
+	}
+	
 	isNPCSwapped = true;
 	return true;
 }
 
-bool NPCAppearance::RevertNewAppearance(bool updateLoadedActors) {
+bool NPCAppearance::RevertNewAppearance(bool updateLoadedActors)
+{
 	if (!isNPCSwapped) {
 		return false;
 	}
 
 	ApplyAppearance(&originalNPCData);
-	UpdateLoadedActors(npc);
+	if (updateLoadedActors) {
+		UpdateLoadedActors(npc);
+	}
+
 	isNPCSwapped = false;
 	return true;
 }

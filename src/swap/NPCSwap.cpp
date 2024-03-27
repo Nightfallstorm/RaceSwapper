@@ -13,7 +13,7 @@ void NPCSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESNPC* a_otherNPC) 
 	if (otherNPCAppearance && otherNPCAppearance->isNPCSwapped) {
 		// Keep original so we can apply original NPC data
 		otherNPCSwapped = true;
-		NPCAppearance::GetNPCAppearance(a_otherNPC)->RevertNewAppearance(false);
+		NPCAppearance::GetNPCAppearance(a_otherNPC)->RevertNewAppearance();
 	}
 
 
@@ -54,7 +54,7 @@ void NPCSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESNPC* a_otherNPC) 
 
 	if (otherNPCAppearance && otherNPCSwapped) {
 		otherNPCSwapped = true;
-		NPCAppearance::GetNPCAppearance(a_otherNPC)->ApplyNewAppearance(false);
+		NPCAppearance::GetNPCAppearance(a_otherNPC)->ApplyNewAppearance();
 	}
 
 	logger::info("Swap complete!");

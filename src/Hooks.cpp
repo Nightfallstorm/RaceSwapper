@@ -355,7 +355,7 @@ struct LoadSkinHook
 		auto appearance = NPCAppearance::GetOrCreateNPCAppearance(a_npc);
 
 		if (appearance && !appearance->isNPCSwapped) {
-			appearance->ApplyNewAppearance(false);
+			appearance->ApplyNewAppearance(true);
 		}
 
 		return appearance;
@@ -372,6 +372,100 @@ struct LoadSkinHook
 
 		logger::info("LoadSkinHook hooked at address {:x}", target.address());
 		logger::info("LoadSkinHook hooked at offset {:x}", target.offset());
+	}
+};
+
+struct SetRaceHook
+{
+	// When actor's race is set, we will intercept and reapply appearances as if it was a brand new actor
+	static std::uint64_t thunk(RE::TESNPC* a_npc, RE::TESRace* a_newRace)
+	{
+		logger::info("SetRace called on {}{:x}, re-doing appearance on new race {}{:x}", 
+			utils::GetFormEditorID(a_npc),
+			a_npc->formID,
+			utils::GetFormEditorID(a_newRace),
+			a_newRace->formID
+		);
+		auto appearance = NPCAppearance::GetOrCreateNPCAppearance(a_npc);
+		if (appearance && appearance->isNPCSwapped) {
+			appearance->RevertNewAppearance();
+		}
+		NPCAppearance::EraseNPCAppearance(a_npc);
+		auto result = func(a_npc, a_newRace);
+		
+		appearance = NPCAppearance::GetOrCreateNPCAppearance(a_npc);
+		if (appearance) {
+			appearance->ApplyNewAppearance(true);
+		}
+
+		return result;
+	}
+
+	static inline REL::Relocation<decltype(thunk)> func;
+
+	// Install our hook at the specified address
+	static inline void Install()
+	{
+		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(36901, 0), REL::VariantOffset(0xD5, 0x0, 0x0) };
+		stl::write_thunk_call<SetRaceHook>(target.address());
+
+		logger::info("SetRaceHook hooked at address {:x}", target.address());
+		logger::info("SetRaceHook hooked at offset {:x}", target.offset());
+	}
+};
+
+struct HasOverlaysHook
+{
+	struct ASMJmp : Xbyak::CodeGenerator
+	{
+		ASMJmp(std::uintptr_t func, std::uintptr_t jmpAddr)
+		{
+			Xbyak::Label funcLabel;
+
+			mov(rcx, rdi); // Moves the TESNPC to first argument for our thunk
+			sub(rsp, 0x20);
+			call(ptr[rip + funcLabel]);
+			add(rsp, 0x20);
+			mov(rcx, jmpAddr);
+			jmp(rcx);
+
+			L(funcLabel);
+			dq(func);
+		}
+	};
+
+	// When actor has an altered race (eg: Nord -> NordVampire) we will tell the game
+	// the actor is NOT altered when it comes to RaceSwapper. This will ensure the actor
+	// always uses the headparts we give to it and not from a pre-populated list
+	static std::uint64_t thunk(RE::TESNPC* a_npc)
+	{
+		auto originalResult = a_npc->originalRace && a_npc->originalRace != a_npc->race;
+
+		auto appearance = NPCAppearance::GetNPCAppearance(a_npc);
+		if (appearance && appearance->isNPCSwapped) {
+			return false; // Tell Skyrim NPC is NOT altered, so it will use our headparts 
+		} else {
+			return originalResult;
+		}
+	}
+
+	// Install our hook at the specified address
+	static inline void Install()
+	{
+		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(24274, 0), REL::VariantOffset(0xD2, 0x0, 0x0) };
+		std::uintptr_t start = target.address();
+		std::uintptr_t end = target.address() + 0x1D;
+		REL::safe_fill(start, REL::NOP, end - start);
+		
+		auto jmp = ASMJmp((std::uintptr_t) thunk, end);
+		auto& trampoline = SKSE::GetTrampoline();
+		SKSE::AllocTrampoline(jmp.getSize());
+		auto result = trampoline.allocate(jmp);
+		SKSE::AllocTrampoline(14);
+		trampoline.write_branch<5>(start, (std::uintptr_t) result); 
+
+		logger::info("HasOverlaysHook hooked at address {:x}", target.address());
+		logger::info("HasOverlaysHook hooked at offset {:x}", target.offset());
 	}
 };
 
@@ -464,7 +558,7 @@ struct CopyFromTemplate
 	static void ProcessBaseNPC(RE::TESNPC* NPC) {
 		auto NPCAppearance = NPCAppearance::GetOrCreateNPCAppearance(NPC);
 		if (NPCAppearance) {
-			NPCAppearance->ApplyNewAppearance(false);
+			NPCAppearance->ApplyNewAppearance();
 		}
 	}
 
@@ -497,7 +591,7 @@ struct CopyNPC
 		if (otherNPCAppearance) {
 			// Swapper data existed for other NPC, revert to original appearance for the copy
 			if (otherNPCAppearance->isNPCSwapped) {
-				otherNPCAppearance->RevertNewAppearance(false);
+				otherNPCAppearance->RevertNewAppearance();
 				otherNPCSwapped = true;
 			}
 		}
@@ -512,14 +606,14 @@ struct CopyNPC
 			// so the new appearance data should be the same as the old one 
 			NPCAppearance::GetOrCreateNPCAppearance(a_self); 
 			if (otherNPCSwapped && NPCAppearance::GetNPCAppearance(a_self)) {
-				NPCAppearance::GetNPCAppearance(a_self)->ApplyNewAppearance(false);
+				NPCAppearance::GetNPCAppearance(a_self)->ApplyNewAppearance();
 			}
 		}
 
 		// Reapply swap to other NPC if necessary
 
 		if (otherNPCAppearance && otherNPCSwapped) {
-			otherNPCAppearance->ApplyNewAppearance(false);
+			otherNPCAppearance->ApplyNewAppearance();
 		}	
 	}
 
@@ -571,13 +665,13 @@ struct SaveNPC
 		bool appliedSwap = appearance->isNPCSwapped;
 		if (appearance && appliedSwap) {
 			logger::info("Reverting NPC for save: {:x}", a_self->formID);
-			appearance->RevertNewAppearance(false);
+			appearance->RevertNewAppearance();
 			
 		}
 		func(a_self, unkSaveStruct);
 
 		if (appearance && appliedSwap) {
-			appearance->ApplyNewAppearance(false);
+			appearance->ApplyNewAppearance();
 		}
 	}
 
@@ -594,6 +688,40 @@ struct SaveNPC
 	}
 };
 
+struct LoadNPC
+{
+	// Revert NPC data when loading NPC. Erase and treat NPC as brand new
+	static void thunk(RE::TESNPC* a_self, std::uint64_t unkLoadStruct)
+	{
+		logger::info("Erasing NPC for load game: {:x}", a_self->formID);
+		auto appearance = NPCAppearance::GetNPCAppearance(a_self);
+		if (appearance && appearance->isNPCSwapped) {
+			appearance->RevertNewAppearance();
+		}
+
+		NPCAppearance::EraseNPCAppearance(a_self);
+		func(a_self, unkLoadStruct);
+		
+		//appearance = NPCAppearance::GetOrCreateNPCAppearance(a_self);
+		//if (appearance) {
+		//	logger::info("Applying appearance to NPC for load game: {:x}", a_self->formID);
+		//	appearance->ApplyNewAppearance();
+		//}
+	}
+
+	static inline REL::Relocation<decltype(thunk)> func;
+
+	static inline std::uint32_t idx = 0xF;
+
+	// Install our hook at the specified address
+	static inline void Install()
+	{
+		stl::write_vfunc<RE::TESNPC, 0, LoadNPC>();
+
+		logger::info("LoadNPC hook set");
+	}
+};
+
 struct RevertNPC
 {
 	// Revert all swaps, restore factory settings
@@ -607,7 +735,7 @@ struct RevertNPC
 		bool appliedSwap = appearance->isNPCSwapped;
 		if (appearance && appliedSwap) {
 			logger::info("Reverting NPC for revert: {:x}", a_self->formID);
-			appearance->RevertNewAppearance(false);
+			appearance->RevertNewAppearance();
 		}
 		func(a_self, unkSaveStruct);
 	}
@@ -646,10 +774,13 @@ void hook::InstallHooks()
 	LoadSkinHook::Install();
 	PopulateGraphHook::Install();
 	IsBeastRaceHook::Install();
+	SetRaceHook::Install();
+	HasOverlaysHook::Install();
 	RE::ScriptEventSourceHolder::GetSingleton()->AddEventSink(new HandleFormDelete());
 	CopyFromTemplate::Install();
 	CopyNPC::Install();
 	DtorNPC::Install();
 	SaveNPC::Install();
+	LoadNPC::Install();
 	RevertNPC::Install();
 }
