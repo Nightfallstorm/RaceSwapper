@@ -257,13 +257,7 @@ namespace utils
 			return a_race;
 		}
 
-		// First attempt, use race compatibility list to lookup vampire -> non-vampire swaps
-		std::map<RE::TESRace*, RE::TESRace*> map = GetRaceCompatibilityMap(!toVampire);
-		if (map.contains(a_race)) {
-			return map[a_race];
-		}
-
-		// Second attempt, use editor ID manipulation to find the vampire race
+		// First attempt, use editor ID manipulation to find the vampire race as this is the least likely to produce false positives
 		auto editorID = utils::GetFormEditorID(a_race);
 		auto newEditorID = editorID + "";
 		if (toVampire) {
@@ -280,6 +274,12 @@ namespace utils
 		if (race && race->As<RE::TESRace>()) {
 			return race->As<RE::TESRace>();
 		}
+
+		// Second attempt, use race compatibility list to lookup vampire -> non-vampire swaps
+		std::map<RE::TESRace*, RE::TESRace*> map = GetRaceCompatibilityMap(!toVampire);
+		if (map.contains(a_race)) {
+			return map[a_race];
+		}		
 
 		// Fallback, return nord vampire race (this is what RaceCompatibility does as well)
 		if (toVampire) {
