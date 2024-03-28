@@ -406,7 +406,7 @@ struct SetRaceHook
 	// Install our hook at the specified address
 	static inline void Install()
 	{
-		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(36901, 0), REL::VariantOffset(0xD5, 0x0, 0x0) };
+		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(36901, 37925), REL::VariantOffset(0xD5, 0xCC, 0xD5) };
 		stl::write_thunk_call<SetRaceHook>(target.address());
 
 		logger::info("SetRaceHook hooked at address {:x}", target.address());
@@ -422,7 +422,11 @@ struct HasOverlaysHook
 		{
 			Xbyak::Label funcLabel;
 
-			mov(rcx, rdi); // Moves the TESNPC to first argument for our thunk
+			if (REL::Module::IsAE()) {
+				mov(rcx, rbx);  // Moves the TESNPC to first argument for our thunk
+			} else {
+				mov(rcx, rdi);  // Moves the TESNPC to first argument for our thunk
+			}
 			sub(rsp, 0x20);
 			call(ptr[rip + funcLabel]);
 			add(rsp, 0x20);
@@ -452,7 +456,11 @@ struct HasOverlaysHook
 	// Install our hook at the specified address
 	static inline void Install()
 	{
-		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(24274, 0), REL::VariantOffset(0xD2, 0x0, 0x0) };
+		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(24274, 24790), REL::VariantOffset(0xD2, 0xC9, 0xD2) };
+		auto range = 0x1D;
+		if (REL::Module::IsAE()) {
+			range = 0x1F;
+		}
 		std::uintptr_t start = target.address();
 		std::uintptr_t end = target.address() + 0x1D;
 		REL::safe_fill(start, REL::NOP, end - start);
