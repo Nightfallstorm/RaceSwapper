@@ -116,7 +116,6 @@ void NPCAppearance::InitializeNPCData(NPCData* a_data)
 
 }
 
-
 void NPCAppearance::CopyFaceData(NPCData* a_data)
 {
 	auto memoryManager = RE::MemoryManager::GetSingleton();

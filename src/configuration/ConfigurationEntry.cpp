@@ -207,24 +207,27 @@ ConfigurationEntry* ConfigurationEntry::ConstructNewEntry(std::string line)
 }
 
 bool ConfigurationEntry::MatchesNPC(RE::TESNPC* a_npc) {
+
+	auto nonVampireRace = utils::AsNonVampireRace(a_npc->race);
+
 	bool isMatch = true;
 
 	isMatch = isMatch && (entryData.sexMatch == RE::SEX::kNone || entryData.sexMatch == a_npc->GetSex());
 	isMatch = isMatch && (!entryData.npcMatch || entryData.npcMatch->formID == a_npc->formID);
-	isMatch = isMatch && (!entryData.raceMatch || entryData.raceMatch->formID == a_npc->race->formID);
+	isMatch = isMatch && (!entryData.raceMatch || entryData.raceMatch->formID == nonVampireRace->formID);
 	isMatch = isMatch && (!entryData.factionMatch || a_npc->IsInFaction(entryData.factionMatch));
 
 	// If NPC matches exclusions, do not match
 	isMatch = isMatch && !entryData.excludedNPCs.contains(a_npc);
-	isMatch = isMatch && !entryData.excludedRaces.contains(a_npc->race);
+	isMatch = isMatch && !entryData.excludedRaces.contains(nonVampireRace);
 	isMatch = isMatch && !entryData.excludedSexes.contains(a_npc->GetSex());
 	for (auto excludedFaction: entryData.excludedFactions) {
 		isMatch = isMatch && !a_npc->IsInFaction(excludedFaction);
 	}
 
 	// Prevents child NPCs matching for adult swaps and vice-versa
-	isMatch = isMatch && (!entryData.otherRace || a_npc->race->IsChildRace() == entryData.otherRace->IsChildRace());
-	isMatch = isMatch && (!entryData.otherNPC || a_npc->race->IsChildRace() == entryData.otherNPC->race->IsChildRace());
+	isMatch = isMatch && (!entryData.otherRace || nonVampireRace->IsChildRace() == entryData.otherRace->IsChildRace());
+	isMatch = isMatch && (!entryData.otherNPC || nonVampireRace->IsChildRace() == entryData.otherNPC->race->IsChildRace());
 
 	if (isMatch) {
 		// TODO: Hash should include the entry itself to prevent all entries with the same weight

@@ -76,6 +76,13 @@ AppearanceConfiguration* ConfigurationDatabase::GetConfigurationForNPC(RE::TESNP
 	if (!raceSwapEntries.empty()) {
 		auto config = new AppearanceConfiguration{ 0 };
 		config->otherRace = PickRandomWeightedEntry(raceSwapEntries, a_npc)->entryData.otherRace;
+
+		// Setup config to match vampire/non-vampire NPC to vampire/non-vampire race counterpart
+		if (utils::IsVampire(a_npc)) {
+			config->otherRace = utils::AsVampireRace(config->otherRace);
+		} else {
+			config->otherRace = utils::AsNonVampireRace(config->otherRace);
+		}
 		return config;
 	}
 

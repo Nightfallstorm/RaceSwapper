@@ -2,8 +2,6 @@
 #include "PCH.h"
 #include "settings/Settings.h"
 
-
-
 namespace utils
 {
 	std::string UniqueStringFromForm(RE::TESForm* a_form_seed)
@@ -22,7 +20,7 @@ namespace utils
 			rawFormID = std::to_string(a_form_seed->GetFormID() & 0x00000FFF);
 		}
 
-		std::string playthroughID = ""; 
+		std::string playthroughID = "";
 		if (Settings::GetSingleton()->features.any(Settings::Features::kPlaythroughRandomization)) {
 			playthroughID = std::to_string(RE::BGSSaveLoadManager::GetSingleton()->currentPlayerID);
 		}
@@ -124,7 +122,6 @@ namespace utils
 		return list;
 	}
 
-
 	std::string GetEditorID(RE::FormID a_formID)
 	{
 		static auto tweaks = GetModuleHandle(L"po3_Tweaks");
@@ -177,7 +174,8 @@ namespace utils
 		}
 	};
 
-	RE::TESRace* GetValidRaceForArmorRecursive(RE::TESObjectARMO* a_armor, RE::TESRace* a_race) {
+	RE::TESRace* GetValidRaceForArmorRecursive(RE::TESObjectARMO* a_armor, RE::TESRace* a_race)
+	{
 		if (a_race == nullptr || a_armor == nullptr) {
 			return nullptr;
 		}
@@ -188,8 +186,117 @@ namespace utils
 				break;
 			}
 		}
-		
+
 		return isValidRace ? a_race : GetValidRaceForArmorRecursive(a_armor, a_race->armorParentRace);
 	}
-}
 
+	bool IsVampire(RE::TESNPC* a_npc)
+	{
+		auto currentRace = a_npc->race;
+		return currentRace->HasKeywordID(0xA82BB);  // Vampire keyword
+	}
+
+	static inline std::map<RE::TESRace*, RE::TESRace*> GetRaceCompatibilityMap(bool isVampireKey)
+	{
+		std::map<RE::TESRace*, RE::TESRace*> raceMap;
+
+		auto dataHandler = RE::TESDataHandler::GetSingleton();
+		RE::BGSListForm* raceList = nullptr;
+		RE::BGSListForm* raceVampireList = nullptr;
+
+		raceList = raceList ? raceList : dataHandler->LookupForm<RE::BGSListForm>(0xD62, "RaceCompatibility.esm");
+		raceVampireList = raceVampireList ? raceVampireList : dataHandler->LookupForm<RE::BGSListForm>(0xD63, "RaceCompatibility.esm");
+
+		raceList = raceList ? raceList : RE::TESForm::LookupByEditorID<RE::BGSListForm>("PlayableRaceList");
+		raceVampireList = raceVampireList ? raceVampireList : RE::TESForm::LookupByEditorID<RE::BGSListForm>("PlayableVampireList");
+
+		if (!raceList || !raceVampireList ||
+			raceList->scriptAddedFormCount != raceVampireList->scriptAddedFormCount ||
+			raceList->forms.size() != raceVampireList->forms.size()) {
+			return raceMap;
+		}
+
+		auto keyList = isVampireKey ? raceVampireList : raceList;
+		auto valueList = isVampireKey ? raceList : raceVampireList;
+
+		for (std::uint32_t i = 0; i < raceList->forms.size(); i++) {
+			auto key = keyList->forms[i]->As<RE::TESRace>();
+			auto value = valueList->forms[i]->As<RE::TESRace>();
+			if (key && value) {
+				raceMap.emplace(key, value);
+			}
+			
+		}
+
+		if (!keyList->scriptAddedTempForms || !valueList->scriptAddedTempForms) {
+			return raceMap;
+		}
+
+		RE::TESForm::GetAllForms().second.get().LockForRead();
+
+		auto keyFormList = keyList->scriptAddedTempForms;
+		auto valueFormList = valueList->scriptAddedTempForms;
+
+		for (std::uint32_t i = 0; i < raceList->scriptAddedFormCount; i++) {
+			auto key = RE::TESForm::LookupByID<RE::TESRace>((*keyFormList)[i]);
+			auto value = RE::TESForm::LookupByID<RE::TESRace>((*valueFormList)[i]);
+			if (key && value) {
+				raceMap.emplace(key, value);
+			}
+		}
+
+		RE::TESForm::GetAllForms().second.get().UnlockForRead();
+
+		return raceMap;
+	}
+
+	static inline RE::TESRace* ConvertRace(RE::TESRace* a_race, bool toVampire)
+	{
+		auto isVampire = a_race->HasKeywordID(0xA82BB);  // Vampire keyword
+		if (isVampire == toVampire) {
+			return a_race;
+		}
+
+		// First attempt, use race compatibility list to lookup vampire -> non-vampire swaps
+		std::map<RE::TESRace*, RE::TESRace*> map = GetRaceCompatibilityMap(!toVampire);
+		if (map.contains(a_race)) {
+			return map[a_race];
+		}
+
+		// Second attempt, use editor ID manipulation to find the vampire race
+		auto editorID = utils::GetFormEditorID(a_race);
+		auto newEditorID = editorID + "";
+		if (toVampire) {
+			newEditorID = editorID + "Vampire";
+		} else {
+			auto vampireIndex = editorID.find("Vampire");
+			if (vampireIndex != std::string::npos) {
+				newEditorID = editorID.erase(vampireIndex);
+			} else {
+				newEditorID = "N/A";
+			}
+		}
+		auto race = RE::TESForm::LookupByEditorID(newEditorID);
+		if (race && race->As<RE::TESRace>()) {
+			return race->As<RE::TESRace>();
+		}
+
+		// Fallback, return nord vampire race (this is what RaceCompatibility does as well)
+		if (toVampire) {
+			return RE::TESForm::LookupByID(0x88794)->As<RE::TESRace>(); // Nord Vampire
+		} else {
+			return RE::TESForm::LookupByID(0x13746)->As<RE::TESRace>(); // Nord
+		}
+		
+	}
+
+	RE::TESRace* AsNonVampireRace(RE::TESRace* a_race)
+	{
+		return ConvertRace(a_race, false);
+	}
+
+	RE::TESRace* AsVampireRace(RE::TESRace* a_race)
+	{
+		return ConvertRace(a_race, true);
+	}
+}

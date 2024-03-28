@@ -16,6 +16,12 @@ namespace utils
 
 	RE::TESNPC::FaceData* DeepCopyFaceData(RE::TESNPC::FaceData* a_faceData);
 
+	bool IsVampire(RE::TESNPC* a_npc);
+
+	RE::TESRace* AsNonVampireRace(RE::TESRace* a_race);
+
+	RE::TESRace* AsVampireRace(RE::TESRace* a_race);
+
 	std::vector<std::string> split_string(std::string& a_string, char a_delimiter);
 
 	std::string GetFormEditorID(const RE::TESForm* a_form);
