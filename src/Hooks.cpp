@@ -192,13 +192,42 @@ struct GetFaceRelatedDataHook2
 	}
 };
 
-// TODO: Consider if this hook should be a separate mod to allow armors to load differently
-struct AttachTESObjectARMOHook
+struct LoadTESObjectARMOHook
 {
 	using BipedObjectSlot = stl::enumeration<RE::BGSBipedObjectForm::BipedObjectSlot, std::uint32_t>;
-	// Overwrite TESObjectARMO::AttachToBiped functionality. This hook will let us load the armor with
-	// the closest valid race
-	static void AttachToBiped(RE::TESObjectARMO* a_armor, RE::TESRace* a_race, RE::BipedAnim** a_anim, bool isFemale)
+	static inline std::map<RE::TESObjectARMO*, BipedObjectSlot> armorSlotMap;
+
+	// We swap the race being passed to be what the NPC's new appearance is
+	// Afterwards, we apply the armor race rework to use the correct race for the given armor and appearance race
+	static void thunk(RE::TESObjectARMO* a_armor, RE::TESRace* a_race, RE::BipedAnim** a_anim, bool isFemale)
+	{
+		auto race = a_race;
+		if (!a_anim || !(*a_anim)->actorRef.get().get() || !(*a_anim)->actorRef.get().get()->As<RE::Actor>()) {
+			return func(a_armor, race, a_anim, isFemale);
+		}
+
+		auto NPC = (*a_anim)->actorRef.get().get()->As<RE::Actor>()->GetActorBase();
+
+		logger::debug("LoadTESObjectARMOHook: Loading {} {:x} for NPC {} {:x}",
+			utils::GetFormEditorID(a_armor), a_armor->formID,
+			utils::GetFormEditorID(NPC), NPC->formID);
+
+		NPCAppearance* appearance = NPCAppearance::GetNPCAppearance(NPC);
+		if (appearance != nullptr && appearance->isNPCSwapped) {
+			// Swap to new appearance's race
+			race = appearance->alteredNPCData.race;
+		}
+
+		race = ApplyArmorRaceRework(a_armor, race);
+
+		// Remove armor race entry to prevent original function using it
+		RE::TESRace* origArmorRace = race->armorParentRace;
+		race->armorParentRace = nullptr;
+		func(a_armor, race, a_anim, isFemale);
+		race->armorParentRace = origArmorRace;
+	}
+
+	static RE::TESRace* ApplyArmorRaceRework(RE::TESObjectARMO* a_armor, RE::TESRace* a_race)
 	{
 		RE::TESRace* race = utils::GetValidRaceForArmorRecursive(a_armor, a_race);
 		if (!race) {
@@ -206,7 +235,7 @@ struct AttachTESObjectARMOHook
 			logger::warn("Race {} {:x} cannot load armor {} {:x}",
 				utils::GetFormEditorID(a_race), a_race->formID,
 				utils::GetFormEditorID(a_armor), a_armor->formID);
-			return;
+			return a_race;
 		}
 		if (armorSlotMap.contains(a_armor)) {
 			a_armor->bipedModelData.bipedObjectSlots = armorSlotMap.at(a_armor);
@@ -224,12 +253,7 @@ struct AttachTESObjectARMOHook
 			a_armor->bipedModelData.bipedObjectSlots.underlying(),
 			origSlots.underlying());
 
-		for (auto addon : a_armor->armorAddons) {
-			if (addon->race == race || utils::is_amongst(addon->additionalRaces, race)) {
-				AddToBiped(addon, a_armor, a_anim, isFemale);
-			}
-		}
-
+		return race;
 		// TODO: Revert somehow? For now, use a cache to store the slots
 		// This has the bug of player inventory potentially showing inaccurate icon for armor
 		//a_armor->bipedModelData.bipedObjectSlots = origSlots;
@@ -247,54 +271,6 @@ struct AttachTESObjectARMOHook
 		}
 
 		return armorSlots & addonSlots;
-	}
-
-	static void AddToBiped(RE::TESObjectARMA* a_addon, RE::TESObjectARMO* a_armor, RE::BipedAnim** a_anim, bool isFemale) {
-		addToBiped(a_addon, a_armor, a_anim, isFemale);
-	}
-
-	// TESObjectARMO::AddToBiped(...)
-	static inline REL::Relocation<decltype(AddToBiped)> addToBiped;
-
-	static inline std::map<RE::TESObjectARMO*, BipedObjectSlot> armorSlotMap;
-
-	// Install our hook at the specified address
-	static inline void Install()
-	{
-		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(17392, 17792) };
-
-		addToBiped = { RELOCATION_ID(17361, 17759) };
-
-		auto& trampoline = SKSE::GetTrampoline();
-		SKSE::AllocTrampoline(14);
-		trampoline.write_branch<5>(target.address(), AttachToBiped);
-
-		logger::info("AttachTESObjectARMOHook hooked at address {:x}", target.address());
-		logger::info("AttachTESObjectARMOHook hooked at offset {:x}", target.offset());
-	}
-};
-
-struct LoadTESObjectARMOHook
-{
-	// We swap the race being passed to be what the NPC's new appearance is
-	static std::uint64_t thunk(RE::TESObjectARMO* a_armor, RE::TESRace* a_race, RE::BipedAnim** a_anim, bool isFemale)
-	{
-		auto race = a_race;
-		if (!a_anim || !(*a_anim)->actorRef.get().get() || !(*a_anim)->actorRef.get().get()->As<RE::Actor>()) {
-			return func(a_armor, race, a_anim, isFemale);
-		}
-		auto NPC = (*a_anim)->actorRef.get().get()->As<RE::Actor>()->GetActorBase();
-
-		logger::debug("LoadTESObjectARMOHook: Loading {} {:x} for NPC {} {:x}",
-			utils::GetFormEditorID(a_armor), a_armor->formID,
-			utils::GetFormEditorID(NPC), NPC->formID);
-
-		NPCAppearance* appearance = NPCAppearance::GetNPCAppearance(NPC);
-		if (appearance != nullptr && appearance->isNPCSwapped) {
-			// Swap to new appearance's race
-			race = appearance->alteredNPCData.race;
-		}
-		return func(a_armor, race, a_anim, isFemale);
 	}
 
 	// TESObjectARMO::AddToBiped(...)
@@ -778,7 +754,6 @@ void hook::InstallHooks()
 	GetBodyPartDataHook::Install();
 	GetBaseMoveTypes::Install();
 	LoadTESObjectARMOHook::Install();
-	AttachTESObjectARMOHook::Install();
 	LoadSkinHook::Install();
 	PopulateGraphHook::Install();
 	IsBeastRaceHook::Install();
