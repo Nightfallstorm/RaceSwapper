@@ -235,6 +235,11 @@ namespace raceswap
 		{
 			std::vector<RE::BGSTextureSet*> skinTextures;
 			std::vector<SkinTextureData> skinTexturesChars;
+
+			if (!race || !race->faceRelatedData[sex] || !race->faceRelatedData[sex]->faceDetailsTextureSets) {
+				return skinTextures; // empty list
+			}
+
 			for (auto skinTexture : *race->faceRelatedData[sex]->faceDetailsTextureSets) {
 				skinTextures.push_back(skinTexture);
 				skinTexturesChars.push_back(raceutils::ExtractKeywords(skinTexture));
