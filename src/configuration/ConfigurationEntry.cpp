@@ -113,21 +113,31 @@ bool ConstructMatchData(std::string line, ConfigurationEntry::EntryData* a_data)
 	std::string match = "match=";
 	line.erase(0, match.size());
 	auto filters = utils::split_string(line, '|');
+
+	bool hasValidData = true;
+
 	for (auto& entry : filters) {
 		if (auto percent = GetPercentageFromString(entry); percent != (std::uint32_t) -1) {
 			a_data->probability = percent;
 		} else if (auto sex = GetSexFromString(entry); sex != RE::SEX::kNone) {
 			a_data->sexMatch = sex;
-		} else if (auto form = GetFormFromString(entry); form && form->Is(RE::FormType::NPC)) {
-			a_data->npcMatch = form->As<RE::TESNPC>();
-		} else if (form && form->Is(RE::FormType::Race)) {
-			a_data->raceMatch = form->As<RE::TESRace>();
-		} else if (form && form->Is(RE::FormType::Faction)) {
-			a_data->factionMatch = form->As<RE::TESFaction>();
+		} else if (auto NPC = GetFormFromString<RE::TESNPC>(entry); NPC) {
+			a_data->npcMatch = NPC;
+		} else if (auto race = GetFormFromString<RE::TESRace>(entry); race) {
+			a_data->raceMatch = race;
+		} else if (auto faction = GetFormFromString<RE::TESFaction>(entry); faction) {
+			a_data->factionMatch = faction;
+		} else {
+			hasValidData = false;
 		}
 	}
 
-	return true;
+	// Enforce NPC, race or faction match
+	if (!a_data->npcMatch && !a_data->factionMatch && !a_data->raceMatch) {
+		hasValidData = false; 
+	}
+
+	return hasValidData;
 }
 
 bool ConstructSwapData(std::string line, ConfigurationEntry::EntryData* a_data)
@@ -135,6 +145,9 @@ bool ConstructSwapData(std::string line, ConfigurationEntry::EntryData* a_data)
 	std::string swap = "swap=";
 	line.erase(0, swap.size());
 	auto filters = utils::split_string(line, '|');
+
+	bool hasValidData = true;
+
 	for (auto& entry : filters) {
 		if (auto percent = GetPercentageFromString(entry); percent != (std::uint32_t) -1) {
 			a_data->weight = percent;
@@ -142,10 +155,17 @@ bool ConstructSwapData(std::string line, ConfigurationEntry::EntryData* a_data)
 			a_data->otherNPC = form->As<RE::TESNPC>();
 		} else if (form && form->Is(RE::FormType::Race)) {
 			a_data->otherRace = form->As<RE::TESRace>();
+		} else {
+			hasValidData = false;
 		}
 	}
 
-	return true;
+	// Enforce swap has an NPC/race to actually swap to
+	if (!a_data->otherNPC && !a_data->otherRace) {
+		hasValidData = false;
+	}
+
+	return hasValidData;
 }
 
 ConfigurationEntry* ConfigurationEntry::ConstructNewEntry(std::string line)
