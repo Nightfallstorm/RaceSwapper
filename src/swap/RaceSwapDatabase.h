@@ -63,6 +63,8 @@ namespace raceswap
 			Long = 1 << 13,
 			NoBeard = 1 << 14,
 			Narrow = 1 << 15,
+			Afro = 1 << 16,
+			Feather = 1 << 17,
 		};
 
 		static inline std::map<std::string, HDPTCharacteristics> HDPTCharMap{
@@ -85,6 +87,8 @@ namespace raceswap
 			std::pair("NoBeard", NoBeard),
 			std::pair("Nobeard", NoBeard),
 			std::pair("Narrow", Narrow),
+			std::pair("Afro", Afro),
+			std::pair("Feather", Feather),
 		};
 
 		enum HDPTColor : std::uint32_t
@@ -106,6 +110,9 @@ namespace raceswap
 			Aqua = 1 << 14,
 			Silver = 1 << 15,
 			Olive = 1 << 16,
+			BlueGreen = 1 << 17,
+			Ambre = 1 << 18,
+			Turquoise = 1 << 19,
 		};
 
 		static inline std::map<std::string, HDPTColor> HDPTColorMap{
@@ -126,6 +133,9 @@ namespace raceswap
 			std::pair("Aqua", Aqua),
 			std::pair("Silver", Silver),
 			std::pair("Olive", Olive),
+			std::pair("BlueGreen", BlueGreen),
+			std::pair("Ambre", Ambre),
+			std::pair("Turquoise", Turquoise),
 		};
 
 		enum SkinTextureCharacteristics : std::uint32_t
