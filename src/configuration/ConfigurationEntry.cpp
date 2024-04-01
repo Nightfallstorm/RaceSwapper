@@ -121,12 +121,12 @@ bool ConstructMatchData(std::string line, ConfigurationEntry::EntryData* a_data)
 			a_data->probability = percent;
 		} else if (auto sex = GetSexFromString(entry); sex != RE::SEX::kNone) {
 			a_data->sexMatch = sex;
-		} else if (auto NPC = GetFormFromString<RE::TESNPC>(entry); NPC) {
-			a_data->npcMatch = NPC;
-		} else if (auto race = GetFormFromString<RE::TESRace>(entry); race) {
-			a_data->raceMatch = race;
-		} else if (auto faction = GetFormFromString<RE::TESFaction>(entry); faction) {
-			a_data->factionMatch = faction;
+		} else if (auto form = GetFormFromString(entry); form && form->Is(RE::FormType::NPC)) {
+			a_data->npcMatch = form->As<RE::TESNPC>();
+		} else if (form && form->Is(RE::FormType::Race)) {
+			a_data->raceMatch = form->As<RE::TESRace>();
+		} else if (form && form->Is(RE::FormType::Faction)) {
+			a_data->factionMatch = form->As<RE::TESFaction>();
 		} else {
 			hasValidData = false;
 		}
