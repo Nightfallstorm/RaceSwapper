@@ -488,7 +488,7 @@ struct IsBeastRaceHook
 {
 	static bool thunk(RE::Actor* a_self, RE::BGSKeyword* a_keyword)
 	{
-		if (a_keyword->formID != constants::Keyword_IsBeastRace) {
+		if (!a_keyword || a_keyword->formID != constants::Keyword_IsBeastRace) {
 			return func(a_self, a_keyword);
 		}
 		auto appearance = NPCAppearance::GetOrCreateNPCAppearance(a_self->GetActorBase());
