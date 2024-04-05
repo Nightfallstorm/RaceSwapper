@@ -37,6 +37,8 @@ namespace Papyrus
 		}
 
 		BIND(IsRaceSwapperActive);
+		BIND(GetAppearanceRaceOfActor);
+		BIND(GetAppearanceRaceOfNPC);
 
 		return true;
 	}
