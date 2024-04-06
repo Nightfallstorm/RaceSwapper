@@ -252,6 +252,9 @@ namespace utils
 
 	static inline RE::TESRace* ConvertRace(RE::TESRace* a_race, bool toVampire)
 	{
+		if (!a_race) {
+			return a_race;
+		}
 		auto isVampire = a_race->HasKeywordID(0xA82BB);  // Vampire keyword
 		if (isVampire == toVampire) {
 			return a_race;

@@ -198,6 +198,7 @@ NPCAppearance* NPCAppearance::GetOrCreateNPCAppearance(RE::TESNPC* a_npc) {
 		return nullptr;
 	}
 
+	logger::debug("NPC {:x} matched entry \"{}\" from file \"{}\"", a_npc->formID, config->entry, config->file);
 	logger::info("Creating new appearance for {:x}. Face NPC used for appearance: {:x}", a_npc->formID, faceNPC->formID);
 	NPCAppearance* appearance = new NPCAppearance(a_npc, config);
 	appearanceMap.insert(std::pair(a_npc->formID, appearance));

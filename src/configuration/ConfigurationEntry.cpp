@@ -205,9 +205,9 @@ bool ConstructSwapData(std::string a_line, ConfigurationEntry::EntryData* a_data
 	return hasValidData;
 }
 
-ConfigurationEntry* ConfigurationEntry::ConstructNewEntry(std::string line)
+ConfigurationEntry* ConfigurationEntry::ConstructNewEntry(std::string a_line, std::string a_file)
 {
-	auto parsingLine = std::string(line);
+	auto parsingLine = std::string(a_line);
 	ConfigurationEntry::EntryData entryData{ 0 };
 
 	/////////// Default Values /////////////
@@ -224,7 +224,7 @@ ConfigurationEntry* ConfigurationEntry::ConstructNewEntry(std::string line)
 		// Line is invalid, or was just a comment. Either way, don't parse it
 		return nullptr;
 	}
-	logger::info("Parsing: {}", line);
+	logger::info("Parsing: {}", a_line);
 
 	// TODO: Make this case insensitive
 	auto matchIndex = parsingLine.find("match=");
@@ -248,22 +248,24 @@ ConfigurationEntry* ConfigurationEntry::ConstructNewEntry(std::string line)
 			ConstructSwapData(swapLine, &entryData) &&
 			ConstructExcludesData(excludeLine, &entryData); 
 	} catch (...) {
-		logger::error("line: \"{}\" is invalid", line);
+		logger::error("line: \"{}\" is invalid", a_line);
 	}
 	
 
 	if (success) {
 		auto newEntry = new ConfigurationEntry();
 		newEntry->entryData = entryData;
+		newEntry->entryData.file = a_file;
+		newEntry->entryData.entry = a_line;
 		logger::debug("Converted entry: matchNPC={:x}", entryData.npcMatch ? entryData.npcMatch->formID : 0);
 		logger::debug("Converted entry: matchRace={:x}", entryData.raceMatch ? entryData.raceMatch->formID : 0);
-		logger::debug("Converted entry: matchFaction={:x}", entryData.factionMatch ? entryData.factionMatch->formID : -1);
-		logger::debug("Converted entry: matchSex={:x}", entryData.sexMatch ? entryData.sexMatch : 2);
+		logger::debug("Converted entry: matchFaction={:x}", entryData.factionMatch ? entryData.factionMatch->formID : 0);
+		logger::debug("Converted entry: matchSex={}", entryData.sexMatch);
 		logger::debug("Converted entry: swapNPC={:x}", entryData.otherNPC ? entryData.otherNPC->formID : 0);
 		logger::debug("Converted entry: swapRace={:x}", entryData.otherRace ? entryData.otherRace->formID : 0);
 		return newEntry;
 	}
-	logger::error("line: \"{}\" is invalid", line);
+	logger::error("line: \"{}\" is invalid", a_line);
 	return nullptr;	
 }
 

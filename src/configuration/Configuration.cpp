@@ -22,7 +22,7 @@ void ConfigurationDatabase::Initialize() {
 		}
 		std::string line;
 		while (std::getline(config, line)) {
-			auto configEntry = ConfigurationEntry::ConstructNewEntry(line);
+			auto configEntry = ConfigurationEntry::ConstructNewEntry(line, entry.path().string());
 			if (configEntry) {
 				entries.push_back(configEntry);
 			}
@@ -53,36 +53,34 @@ ConfigurationEntry* PickRandomWeightedEntry(std::vector<std::pair<std::uint32_t,
 }
 
 AppearanceConfiguration* ConfigurationDatabase::GetConfigurationForNPC(RE::TESNPC* a_npc) {
-	std::vector<std::pair<std::uint32_t, ConfigurationEntry*>> npcSwapEntries;
-	std::vector<std::pair<std::uint32_t, ConfigurationEntry*>> raceSwapEntries;
+	std::vector<std::pair<std::uint32_t, ConfigurationEntry*>> matchedEntries;
 	for (auto entry : entries) {
 		if (entry->MatchesNPC(a_npc)) {
-			if (entry->entryData.otherNPC) {
-				npcSwapEntries.push_back({ entry->entryData.weight, entry });
-			} else if (entry->entryData.otherRace) {
-				raceSwapEntries.push_back({ entry->entryData.weight, entry });
-			}
+			matchedEntries.push_back({ entry->entryData.weight, entry });
 		}
 	}
 
-	// NPC swaps always take priority over race swaps
-
-	if (!npcSwapEntries.empty()) {
-		auto config = new AppearanceConfiguration{ 0 };
-		config->otherNPC = PickRandomWeightedEntry(npcSwapEntries, a_npc)->entryData.otherNPC;
-		return config;
+	for (auto& entry : matchedEntries) {
+		logger::debug("Consider following entry for NPC {:x}: file: \"{}\" entry: \"{}\"",
+			a_npc->formID,
+			entry.second->entryData.file,
+			entry.second->entryData.entry
+		);
 	}
 
-	if (!raceSwapEntries.empty()) {
+	if (!matchedEntries.empty()) {
 		auto config = new AppearanceConfiguration{ 0 };
-		config->otherRace = PickRandomWeightedEntry(raceSwapEntries, a_npc)->entryData.otherRace;
-
+		auto matchedEntry = PickRandomWeightedEntry(matchedEntries, a_npc);
+		config->otherRace = matchedEntry->entryData.otherRace;
+		config->otherNPC = matchedEntry->entryData.otherNPC;
 		// Setup config to match vampire/non-vampire NPC to vampire/non-vampire race counterpart
 		if (utils::IsVampire(a_npc)) {
 			config->otherRace = utils::AsVampireRace(config->otherRace);
 		} else {
 			config->otherRace = utils::AsNonVampireRace(config->otherRace);
 		}
+		config->file = matchedEntry->entryData.file;
+		config->entry = matchedEntry->entryData.entry;
 		return config;
 	}
 

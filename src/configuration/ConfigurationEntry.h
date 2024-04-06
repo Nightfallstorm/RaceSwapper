@@ -23,11 +23,15 @@ public:
 		RE::TESNPC* otherNPC = nullptr;
 		RE::TESRace* otherRace = nullptr;
 		std::uint32_t weight = 10; // 0-100
+
+		// Metadata
+		std::string file;
+		std::string entry;
 	};
 
 	EntryData entryData;
 
 	bool MatchesNPC(RE::TESNPC* a_npc);
 
-	static ConfigurationEntry* ConstructNewEntry(std::string line);
+	static ConfigurationEntry* ConstructNewEntry(std::string line, std::string a_file);
 };
