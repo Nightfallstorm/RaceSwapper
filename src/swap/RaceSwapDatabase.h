@@ -433,10 +433,12 @@ namespace raceswap
 
 			auto race_female_tints = a_race->faceRelatedData[RE::SEX::kFemale]->tintMasks;
 
-			for (auto race_tint : *race_male_tints) {
-				if (race_tint && race_tint->texture.skinTone == DataBase::TintType::kSkinTone) {
-					this->default_skintint_for_each_race[RE::SEX::kMale][a_race] = race_tint;
-					break;
+			if (race_male_tints) {
+				for (auto race_tint : *race_male_tints) {
+					if (race_tint && race_tint->texture.skinTone == DataBase::TintType::kSkinTone) {
+						this->default_skintint_for_each_race[RE::SEX::kMale][a_race] = race_tint;
+						break;
+					}
 				}
 			}
 
@@ -444,10 +446,12 @@ namespace raceswap
 				logger::info("  Race: {} has no skin tone tint layer for male.", utils::GetFormEditorID(a_race));
 			}
 
-			for (auto race_tint : *race_female_tints) {
-				if (race_tint && race_tint->texture.skinTone == DataBase::TintType::kSkinTone) {
-					this->default_skintint_for_each_race[RE::SEX::kFemale][a_race] = race_tint;
-					break;
+			if (race_female_tints) {
+				for (auto race_tint : *race_female_tints) {
+					if (race_tint && race_tint->texture.skinTone == DataBase::TintType::kSkinTone) {
+						this->default_skintint_for_each_race[RE::SEX::kFemale][a_race] = race_tint;
+						break;
+					}
 				}
 			}
 

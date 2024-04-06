@@ -257,14 +257,17 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 
 		auto matchedTints = RE::BSTArray<RE::TESRace::FaceRelatedData::TintAsset*>();
 		matchedTints.clear();
-		// Find original tint asset from the original race
-		for (auto& asset : *originalTintAssets) {
-			if (asset->texture.index == tint->tintIndex) {
-				originalTintAsset = asset;
-				break;
+
+		if (originalTintAssets) {
+			// Find original tint asset from the original race
+			for (auto& asset : *originalTintAssets) {
+				if (asset->texture.index == tint->tintIndex) {
+					originalTintAsset = asset;
+					break;
+				}
 			}
 		}
-	
+		
 		if (!originalTintAsset) {
 			logger::debug("tint index {} not found", tint->tintIndex);
 			// Can't find original asset, invalid tint? Remove the tint to be safe
@@ -275,10 +278,12 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 			continue;
 		}
 
-		// Find all tint assets in new race that is the same type, then pick a pseudo-random one
-		for (auto& asset : *newTintAssets) {
-			if (asset->texture.skinTone == originalTintAsset->texture.skinTone) {
-				matchedTints.push_back(asset);
+		if (newTintAssets) {
+			// Find all tint assets in new race that is the same type, then pick a pseudo-random one
+			for (auto& asset : *newTintAssets) {
+				if (asset->texture.skinTone == originalTintAsset->texture.skinTone) {
+					matchedTints.push_back(asset);
+				}
 			}
 		}
 
