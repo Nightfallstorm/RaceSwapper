@@ -3,23 +3,57 @@
 #include "Utils.h"
 #include "MergeMapperPluginAPI.h"
 
-bool IsValidEntry(std::string line) {
-	if (line.find("match=") == std::string::npos) {
-		logger::error("line: \"{}\" is missing a 'match=' line and cannot be parsed!", line);
+// https://codereview.stackexchange.com/questions/40124/trim-white-space-from-string
+std::string trimLine(std::string a_line) {
+	if (0 != a_line.size())  //if the size is 0
+	{
+		std::string wspc(" \t\f\v\n\r");  // These are the whitespaces
+		//finding the last valid character
+		std::string::size_type posafter = a_line.find_last_not_of(wspc);
+		//finding the first valid character
+		std::string::size_type posbefore = a_line.find_first_not_of(wspc);
+
+		if ((-1 < (int)posafter) && (-1 < (int)posbefore))  //Just Wsp
+		{
+			std::string NoSpaceToken;
+			// Cut off the outside parts of found positions
+			NoSpaceToken = a_line.substr(posbefore, ((posafter + 1) - posbefore));
+			return NoSpaceToken;
+		}
+	}
+
+	return a_line;
+}
+
+bool IsValidEntry(std::string a_line) {
+	auto parsedLine = std::string(a_line);
+	// Remove the whitespace
+	parsedLine.erase(remove(parsedLine.begin(), parsedLine.end(), ' '), parsedLine.end());
+	if (parsedLine.empty()) {
 		return false;
 	}
 
-	if (line.find("match=") != 0) {
-		logger::error("line: \"{}\" is invalid, 'match=' must be first in the line!", line);
-	}
+	auto matchIdx = a_line.find("match=");
+	auto swapIdx = a_line.find("swap=");
+	auto excludeIdx = a_line.find("exclude=");
 
-	if (line.find("swap=") == std::string::npos) {
-		logger::error("line: \"{}\" is missing a 'swap=' line and cannot be parsed!", line);
+	if (matchIdx == std::string::npos) {
+		logger::error("line: \"{}\" is missing a 'match=' line and cannot be parsed!", a_line);
 		return false;
 	}
 
-	if (line.find("exclude=") != std::string::npos && line.find("exclude=") < line.find("swap=")) {
-		logger::error("line: \"{}\" has an exclude line that is before swap! The order must be 'race=... swap=... exclude=...", line);
+	if (swapIdx == std::string::npos) {
+		logger::error("line: \"{}\" is missing a 'swap=' line and cannot be parsed!", a_line);
+		return false;
+	}
+
+	if (swapIdx && swapIdx < matchIdx) {
+		logger::error("line: \"{}\" has a swap line that is before match! The order must be 'match=... swap=... exclude=...!", a_line);
+		return false;
+	}
+
+	if (excludeIdx != std::string::npos && excludeIdx < swapIdx) {
+		logger::error("line: \"{}\" has an exclude line that is before swap! The order must be 'match=... swap=... exclude=...", a_line);
 	}
 
 	return true;
@@ -86,7 +120,8 @@ RE::SEX GetSexFromString(std::string line) {
 	}
 }
 
-bool ConstructExcludesData(std::string line, ConfigurationEntry::EntryData* a_data) {
+bool ConstructExcludesData(std::string a_line, ConfigurationEntry::EntryData* a_data) {
+	auto line = trimLine(a_line);
 	if (line == "") {
 		return true;
 	}
@@ -108,8 +143,9 @@ bool ConstructExcludesData(std::string line, ConfigurationEntry::EntryData* a_da
 	return true;
 }
 
-bool ConstructMatchData(std::string line, ConfigurationEntry::EntryData* a_data)
+bool ConstructMatchData(std::string a_line, ConfigurationEntry::EntryData* a_data)
 {
+	auto line = trimLine(a_line);
 	std::string match = "match=";
 	line.erase(0, match.size());
 	auto filters = utils::split_string(line, '|');
@@ -140,8 +176,9 @@ bool ConstructMatchData(std::string line, ConfigurationEntry::EntryData* a_data)
 	return hasValidData;
 }
 
-bool ConstructSwapData(std::string line, ConfigurationEntry::EntryData* a_data)
+bool ConstructSwapData(std::string a_line, ConfigurationEntry::EntryData* a_data)
 {
+	auto line = trimLine(a_line);
 	std::string swap = "swap=";
 	line.erase(0, swap.size());
 	auto filters = utils::split_string(line, '|');
@@ -183,20 +220,18 @@ ConfigurationEntry* ConfigurationEntry::ConstructNewEntry(std::string line)
 		parsingLine.erase(parsingLine.find('#'));
 	}
 
-	// Remove the whitespace
-	parsingLine.erase(remove(parsingLine.begin(), parsingLine.end(), ' '), parsingLine.end());
-
-	if (parsingLine.empty() || !IsValidEntry(parsingLine)) {
+	if (!IsValidEntry(parsingLine)) {
 		// Line is invalid, or was just a comment. Either way, don't parse it
 		return nullptr;
 	}
 	logger::info("Parsing: {}", line);
 
 	// TODO: Make this case insensitive
+	auto matchIndex = parsingLine.find("match=");
 	auto swapIndex = parsingLine.find("swap=");
 	auto excludeIndex = parsingLine.find("exclude=");
 
-	auto matchLine = parsingLine.substr(0, swapIndex);
+	auto matchLine = parsingLine.substr(matchIndex, swapIndex - matchIndex);
 	std::string swapLine;
 	std::string excludeLine;
 	if (excludeIndex == std::string::npos) {
@@ -220,6 +255,12 @@ ConfigurationEntry* ConfigurationEntry::ConstructNewEntry(std::string line)
 	if (success) {
 		auto newEntry = new ConfigurationEntry();
 		newEntry->entryData = entryData;
+		logger::debug("Converted entry: matchNPC={:x}", entryData.npcMatch ? entryData.npcMatch->formID : 0);
+		logger::debug("Converted entry: matchRace={:x}", entryData.raceMatch ? entryData.raceMatch->formID : 0);
+		logger::debug("Converted entry: matchFaction={:x}", entryData.factionMatch ? entryData.factionMatch->formID : -1);
+		logger::debug("Converted entry: matchSex={:x}", entryData.sexMatch ? entryData.sexMatch : 2);
+		logger::debug("Converted entry: swapNPC={:x}", entryData.otherNPC ? entryData.otherNPC->formID : 0);
+		logger::debug("Converted entry: swapRace={:x}", entryData.otherRace ? entryData.otherRace->formID : 0);
 		return newEntry;
 	}
 	logger::error("line: \"{}\" is invalid", line);
@@ -248,7 +289,7 @@ bool ConfigurationEntry::MatchesNPC(RE::TESNPC* a_npc) {
 	// Prevents child NPCs matching for adult swaps and vice-versa
 	isMatch = isMatch && (!entryData.otherRace || nonVampireRace->IsChildRace() == entryData.otherRace->IsChildRace());
 	isMatch = isMatch && (!entryData.otherNPC || nonVampireRace->IsChildRace() == entryData.otherNPC->race->IsChildRace());
-
+	
 	if (isMatch) {
 		// TODO: Hash should include the entry itself to prevent all entries with the same weight
 		// matching the same exact NPCs
