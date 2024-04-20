@@ -400,6 +400,12 @@ namespace raceswap
 				if (a_headpart->flags.any(RE::BGSHeadPart::Flag::kFemale)) {
 					a_headpart->validRaces->ForEachForm(_append_to_list_female);
 				}
+
+				if (a_headpart->flags.none(RE::BGSHeadPart::Flag::kMale, RE::BGSHeadPart::Flag::kFemale)) {
+					// Gender-neutral headpart, add to both male and female lists
+					a_headpart->validRaces->ForEachForm(_append_to_list_male);
+					a_headpart->validRaces->ForEachForm(_append_to_list_female);
+				}
 			}
 		}
 
