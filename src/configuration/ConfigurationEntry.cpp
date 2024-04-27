@@ -186,7 +186,10 @@ bool ConstructSwapData(std::string a_line, ConfigurationEntry::EntryData* a_data
 	bool hasValidData = true;
 
 	for (auto& entry : filters) {
-		if (auto percent = GetPercentageFromString(entry); percent != (std::uint32_t) -1) {
+		logger::debug("Parsing for swap \"{}\"", entry);
+		if (auto sex = GetSexFromString(entry); sex != RE::SEX::kNone) {
+			a_data->otherSex = sex;
+		} else if (auto percent = GetPercentageFromString(entry); percent != (std::uint32_t) -1) {
 			a_data->weight = percent;
 		} else if (auto form = GetFormFromString(entry); form && form->Is(RE::FormType::NPC)) {
 			a_data->otherNPC = form->As<RE::TESNPC>();
@@ -197,8 +200,8 @@ bool ConstructSwapData(std::string a_line, ConfigurationEntry::EntryData* a_data
 		}
 	}
 
-	// Enforce swap has an NPC/race to actually swap to
-	if (!a_data->otherNPC && !a_data->otherRace) {
+	// Enforce swap has an NPC/race/sex to actually swap to
+	if (!a_data->otherNPC && !a_data->otherRace && !a_data->otherSex) {
 		hasValidData = false;
 	}
 
@@ -263,6 +266,7 @@ ConfigurationEntry* ConfigurationEntry::ConstructNewEntry(std::string a_line, st
 		logger::debug("Converted entry: matchSex={}", entryData.sexMatch);
 		logger::debug("Converted entry: swapNPC={:x}", entryData.otherNPC ? entryData.otherNPC->formID : 0);
 		logger::debug("Converted entry: swapRace={:x}", entryData.otherRace ? entryData.otherRace->formID : 0);
+		logger::debug("Converted entry: swapSex={}", entryData.otherSex);
 		return newEntry;
 	}
 	logger::error("line: \"{}\" is invalid", a_line);

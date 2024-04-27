@@ -43,6 +43,11 @@ namespace raceutils
 	_likelihood_t _match(SkinTextureData dst, SkinTextureData src);
 	std::vector<RE::BGSTextureSet*> MatchSkinTextureData(SkinTextureData dst, std::vector<RE::BGSTextureSet*> src_hdpts, std::vector<SkinTextureData> src_data);
 
+	std::string GetHeadPartTypeAsName(RE::BGSHeadPart::HeadPartType a_type);
+
+	RE::BGSColorForm* GetClosestColorForm(RE::BGSColorForm* a_colorForm, RE::BSTArray<RE::BGSColorForm*>* a_colors);
+
+	std::uint16_t GetClosestPresetIdx(RE::Color a_color, RE::TESRace::FaceRelatedData::TintAsset::Presets a_presets);
 
 	/* 
 	Class for random number generation based on a TESForm.

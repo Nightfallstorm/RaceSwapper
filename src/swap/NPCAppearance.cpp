@@ -4,6 +4,7 @@
 #include "configuration/Configuration.h"
 #include "NPCSwap.h"
 #include "RaceSwap.h"
+#include "SexSwap.h"
 #include "Utils.h"
 
 static void UpdateLoadedActors(RE::TESNPC* a_npc) {
@@ -54,7 +55,7 @@ void NPCAppearance::ApplyAppearance(NPCData* a_data)
 {
 	npc->height = a_data->height;
 	npc->weight = a_data->weight;
-	if (a_data->isFemale) {
+	if (a_data->sex == RE::SEX::kFemale) {
 		npc->actorData.actorBaseFlags.set(RE::ACTOR_BASE_DATA::Flag::kFemale);
 	} else {
 		npc->actorData.actorBaseFlags.reset(RE::ACTOR_BASE_DATA::Flag::kFemale);
@@ -98,7 +99,7 @@ void NPCAppearance::InitializeNPCData(NPCData* a_data)
 
 	a_data->weight = npc->weight;
 	a_data->height = npc->height;
-	a_data->isFemale = npc->IsFemale();
+	a_data->sex = npc->GetSex();
 
 	a_data->bodyTintColor = npc->bodyTintColor;
 
@@ -137,6 +138,7 @@ void NPCAppearance::CopyFaceData(NPCData* a_data)
 void NPCAppearance::SetupNewAppearance() {
 	RaceSwap::applySwap(&alteredNPCData, config->otherRace);
 	NPCSwap::applySwap(&alteredNPCData, config->otherNPC);
+	SexSwap::applySwap(&alteredNPCData, config->otherSex);
 	// TODO add more swaps here
 }
 

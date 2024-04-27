@@ -22,8 +22,9 @@ public:
 		// Appearance Data
 		RE::TESNPC* otherNPC = nullptr;
 		RE::TESRace* otherRace = nullptr;
+		RE::SEX otherSex = RE::SEX::kNone;
 		std::uint32_t weight = 10; // 0-100
-
+		
 		// Metadata
 		std::string file;
 		std::string entry;

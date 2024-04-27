@@ -6,6 +6,7 @@ struct AppearanceConfiguration
 {
 	RE::TESNPC* otherNPC;
 	RE::TESRace* otherRace;
+	RE::SEX otherSex = RE::SEX::kNone;
 	std::string entry;
 	std::string file;
 };

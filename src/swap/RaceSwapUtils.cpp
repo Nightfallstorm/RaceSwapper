@@ -116,4 +116,68 @@ namespace raceutils
 		return likelihood_map[max];
 	}
 
+	std::string GetHeadPartTypeAsName(RE::BGSHeadPart::HeadPartType a_type)
+	{
+		if (a_type == RE::BGSHeadPart::HeadPartType::kEyebrows) {
+			return "Eyebrows";
+		} else if (a_type == RE::BGSHeadPart::HeadPartType::kEyes) {
+			return "Eyes";
+		} else if (a_type == RE::BGSHeadPart::HeadPartType::kFace) {
+			return "Face";
+		} else if (a_type == RE::BGSHeadPart::HeadPartType::kFacialHair) {
+			return "Facial Hair";
+		} else if (a_type == RE::BGSHeadPart::HeadPartType::kHair) {
+			return "Hair";
+		} else if (a_type == RE::BGSHeadPart::HeadPartType::kMisc) {
+			return "Misc";
+		} else if (a_type == RE::BGSHeadPart::HeadPartType::kScar) {
+			return "Scar";
+		}
+		return "Unknown";
+	}
+
+	RE::BGSColorForm* GetClosestColorForm(RE::BGSColorForm* a_colorForm, RE::BSTArray<RE::BGSColorForm*>* a_colors)
+	{
+		if (!a_colorForm || !a_colors || a_colors->empty()) {
+			return nullptr;
+		}
+
+		RE::BGSColorForm* closestColor = nullptr;
+		int closestPresetMatch = 1000000;  // Closer to 0.0 is better
+		RE::Color origColor = a_colorForm->color;
+		for (auto colorForm : *a_colors) {
+			RE::Color currentColor = colorForm->color;
+
+			int currentPresetMatch = std::abs(origColor.blue - currentColor.blue) +
+			                         std::abs(origColor.green - currentColor.green) +
+			                         std::abs(origColor.red - currentColor.red);
+
+			if (currentPresetMatch < closestPresetMatch) {
+				closestPresetMatch = currentPresetMatch;
+				closestColor = colorForm;
+			}
+		}
+
+		return closestColor;
+	}
+
+	std::uint16_t GetClosestPresetIdx(RE::Color a_color, RE::TESRace::FaceRelatedData::TintAsset::Presets a_presets)
+	{
+		std::uint16_t closestPresetIdx = 0;
+		int closestPresetMatch = 1000000;  // Closer to 0.0 is better
+		for (std::uint16_t i = 0; i < a_presets.colors.size(); i++) {
+			RE::Color currentColor = a_presets.colors[i]->color;
+
+			int currentPresetMatch = std::abs(a_color.blue - currentColor.blue) +
+			                         std::abs(a_color.green - currentColor.green) +
+			                         std::abs(a_color.red - currentColor.red);
+
+			if (currentPresetMatch < closestPresetMatch) {
+				closestPresetMatch = currentPresetMatch;
+				closestPresetIdx = i;
+			}
+		}
+
+		return closestPresetIdx;
+	}
 }

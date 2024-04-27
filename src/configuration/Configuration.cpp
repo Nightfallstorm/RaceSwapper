@@ -79,6 +79,7 @@ AppearanceConfiguration* ConfigurationDatabase::GetConfigurationForNPC(RE::TESNP
 		} else {
 			config->otherRace = utils::AsNonVampireRace(config->otherRace);
 		}
+		config->otherSex = matchedEntry->entryData.otherSex;
 		config->file = matchedEntry->entryData.file;
 		config->entry = matchedEntry->entryData.entry;
 		return config;

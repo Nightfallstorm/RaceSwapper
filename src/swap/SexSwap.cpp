@@ -1,52 +1,61 @@
+#include "SexSwap.h"
 #include "PCH.h"
+#include "RaceSwapDatabase.h"
 #include "RaceSwapUtils.h"
 #include "Utils.h"
-#include "RaceSwap.h"
-#include "RaceSwapDatabase.h"
 
-void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRace)
+
+
+std::string GetSexAsName(RE::SEX a_sex)
 {
-	if (!a_otherRace || a_data->race == a_otherRace) {
-		// Don't do anything if no other race present, or NPC is already said race
+	switch (a_sex) {
+	case RE::SEX::kFemale:
+		{
+			return "Female";
+		}
+	case RE::SEX::kMale:
+		{
+			return "Male";
+		}
+	default:
+		{
+			return "Unknown";
+		}
+	}
+}
+
+void SexSwap::applySwap(NPCAppearance::NPCData* a_data, RE::SEX a_otherSex)
+{
+	if (a_otherSex == RE::SEX::kNone || a_otherSex == RE::SEX::kTotal || a_data->sex == a_otherSex) {
+		// Don't do anything if NPC is already the given sex, or the sex is invalid
 		return;
 	}
 
-	if (a_data->baseNPC->race->IsChildRace() != a_otherRace->IsChildRace()) {
-		// Don't allow child NPCs swapping to non-child races and vice versa
-		logger::warn("Attempting to swap {:x} to race {} {:x}. Childen cannot be swapped to non-child races and vice versa!",
-			a_data->baseNPC->formID, utils::GetFormEditorID(a_otherRace), a_otherRace->formID);
-		return;
-	}
-
-	logger::info("Swapping {} {:x} to {} {:x}", 
+	logger::info("Swapping {} {:x} to {}",
 		utils::GetFormEditorID(a_data->baseNPC).c_str(),
-		a_data->baseNPC->formID, 
-		utils::GetFormEditorID(a_otherRace),
-		a_otherRace->formID
-	);
+		a_data->baseNPC->formID,
+		GetSexAsName(a_otherSex));
 
-	auto originalRace = a_data->race;
-	a_data->race = a_otherRace;
-	a_data->faceNPC = nullptr; // Prevents cases where face NPC is configured differently
-	a_data->skeletonModel = &a_otherRace->skeletonModels[a_data->sex];
-	a_data->isBeastRace = a_otherRace->HasKeywordID(constants::Keyword_IsBeastRace);
-	a_data->skin = a_otherRace->skin;
-	a_data->faceRelatedData = a_otherRace->faceRelatedData[a_data->sex];
-	a_data->bodyPartData = a_otherRace->bodyPartData;
-	a_data->bodyTextureModel = &a_otherRace->bodyTextureModels[a_data->sex];
-	a_data->behaviorGraph = &a_otherRace->behaviorGraphs[a_data->sex];
+	auto originalSex = a_data->sex;
+	a_data->sex = a_otherSex;
+	a_data->faceNPC = nullptr;  // Prevents cases where face NPC is configured differently
+	a_data->skeletonModel = &a_data->race->skeletonModels[a_otherSex];
+	a_data->faceRelatedData = a_data->race->faceRelatedData[a_otherSex];
+	a_data->bodyTextureModel = &a_data->race->bodyTextureModels[a_otherSex];
+	a_data->behaviorGraph = &a_data->race->behaviorGraphs[a_otherSex];
 
-	raceutils::RandomGen rand_generator(a_data->baseNPC);	
+	raceutils::RandomGen rand_generator(a_data->baseNPC);
 
+	assert(a_data->sex == RE::SEX::kMale || a_data->sex == RE::SEX::kFemale);
 	DoHeadData(rand_generator, a_data);
 	DoHeadParts(rand_generator, a_data);
-	DoTints(rand_generator, a_data, originalRace);
+	DoTints(rand_generator, a_data, originalSex);
 	DoHeadMorphs(rand_generator, a_data);
 
 	return;
 }
 
-bool RaceSwap::DoHeadData(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data)
+bool SexSwap::DoHeadData(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data)
 {
 	auto database = raceswap::DataBase::GetSingleton();
 	if (!a_data->race->faceRelatedData[a_data->sex]) {
@@ -54,7 +63,7 @@ bool RaceSwap::DoHeadData(raceutils::RandomGen rand_gen, NPCAppearance::NPCData*
 	}
 
 	auto defaultTexture = a_data->race->faceRelatedData[a_data->sex]->defaultFaceDetailsTextureSet;
-	
+
 	if (!a_data->headRelatedData->faceDetails) {
 		if (defaultTexture) {
 			logger::debug("No skin texture, using new default {} {:x}", utils::GetFormEditorID(defaultTexture).c_str(), defaultTexture->formID);
@@ -62,7 +71,7 @@ bool RaceSwap::DoHeadData(raceutils::RandomGen rand_gen, NPCAppearance::NPCData*
 		} else {
 			logger::debug("No skin texture, using NONE");
 			a_data->headRelatedData->faceDetails = nullptr;
-		}	
+		}
 	} else {
 		auto item_list = database->GetMatchedSkinTextureResults(static_cast<RE::SEX>(a_data->sex), a_data->race, a_data->headRelatedData->faceDetails);
 
@@ -84,7 +93,7 @@ bool RaceSwap::DoHeadData(raceutils::RandomGen rand_gen, NPCAppearance::NPCData*
 	return true;
 }
 
-bool RaceSwap::DoHeadParts(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data)
+bool SexSwap::DoHeadParts(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data)
 {
 	std::vector<RE::BGSHeadPart*> oldHeadparts;
 	std::vector<RE::BGSHeadPart*> newHeadParts;
@@ -97,9 +106,12 @@ bool RaceSwap::DoHeadParts(raceutils::RandomGen rand_gen, NPCAppearance::NPCData
 	}
 
 	// Second passthrough, swap to other race headparts
-	
+
 	for (auto headpart : oldHeadparts) {
 		auto newPart = SwitchHeadPart(rand_gen, a_data, headpart);
+		if (!newPart) {
+			continue;
+		}
 		auto oldPart = headpart;
 
 		logger::debug("{:x} Swapping {} {} {:x} to {} {} {:x}",
@@ -120,7 +132,7 @@ bool RaceSwap::DoHeadParts(raceutils::RandomGen rand_gen, NPCAppearance::NPCData
 	}
 
 	// Final passthrough, replace the original headparts with the new ones
-	auto numHeadParts = (std::uint8_t) newHeadParts.size();
+	auto numHeadParts = (std::uint8_t)newHeadParts.size();
 	RE::BGSHeadPart** headparts = RE::calloc<RE::BGSHeadPart*>(numHeadParts);
 	for (std::uint8_t i = 0; i < numHeadParts; i++) {
 		headparts[i] = newHeadParts.at(i);
@@ -132,7 +144,7 @@ bool RaceSwap::DoHeadParts(raceutils::RandomGen rand_gen, NPCAppearance::NPCData
 	return true;
 }
 
-bool RaceSwap::DoHeadMorphs(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data)
+bool SexSwap::DoHeadMorphs(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data)
 {
 	if (!a_data->race->faceRelatedData[a_data->sex]) {
 		return false;
@@ -144,9 +156,8 @@ bool RaceSwap::DoHeadMorphs(raceutils::RandomGen rand_gen, NPCAppearance::NPCDat
 		return false;
 	}
 	auto newNPC = raceutils::random_pick(
-		*presetNPCs, 
-		(int) rand_gen.GetNext()
-	);
+		*presetNPCs,
+		(int)rand_gen.GetNext());
 
 	auto morphs = newNPC->faceData->morphs;
 	auto parts = newNPC->faceData->parts;
@@ -163,17 +174,17 @@ bool RaceSwap::DoHeadMorphs(raceutils::RandomGen rand_gen, NPCAppearance::NPCDat
 	return false;
 }
 
-bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data, RE::TESRace* a_originalRace)
+bool SexSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data, RE::SEX a_originalSex)
 {
-	if (!a_originalRace->faceRelatedData[a_data->sex] ||
-		!a_originalRace->faceRelatedData[a_data->sex]->tintMasks) {
-		logger::info("  No tint masks for the original race!");
+	if (!a_data->race->faceRelatedData[a_originalSex] ||
+		!a_data->race->faceRelatedData[a_originalSex]->tintMasks) {
+		logger::info("  No original sex tint masks to use!");
 		return false;
 	}
 
 	if (!a_data->race->faceRelatedData[a_data->sex] ||
 		!a_data->race->faceRelatedData[a_data->sex]->tintMasks) {
-		logger::info("  No tint masks for the new race!");
+		logger::info("  No tint masks to use!");
 		return false;
 	}
 
@@ -184,7 +195,7 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 	}
 
 	auto skintone_tintasset = raceswap::DataBase::GetSingleton()->GetRaceSkinTint(static_cast<RE::SEX>(a_data->sex), a_data->race);
-	auto& originalTintAssets = a_originalRace->faceRelatedData[a_data->sex]->tintMasks;
+	auto& originalTintAssets = a_data->race->faceRelatedData[a_originalSex]->tintMasks;
 	auto& newTintAssets = a_data->race->faceRelatedData[a_data->sex]->tintMasks;
 
 	bool bodyColorFixed = false;
@@ -204,14 +215,14 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 				}
 			}
 		}
-		
+
 		if (!originalTintAsset) {
 			logger::debug("tint index {} not found", tint->tintIndex);
 			// Can't find original asset, invalid tint? Remove the tint to be safe
-			tint->interpolationValue = 0; // TODO: Check if this actually removes the tint from being displayed?
+			tint->interpolationValue = 0;  // TODO: Check if this actually removes the tint from being displayed?
 			tint->tintIndex = 65535;
 			tint->tintColor = RE::Color(255, 255, 255, 255);
-			
+
 			continue;
 		}
 
@@ -238,9 +249,9 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 		// Replace values of original tint with new tint, keeping closest color match that's within the asset's presets
 
 		tint->tintIndex = new_tint->texture.index;
-		
+
 		auto presetIdx = raceutils::GetClosestPresetIdx(tint->tintColor, new_tint->presets);
-		
+
 		tint->preset = presetIdx;
 		auto alpha = tint->tintColor.alpha;
 		tint->tintColor = new_tint->presets.colors[presetIdx]->color;
@@ -248,7 +259,6 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 
 		// Update body tint color if this is for skin
 		if (new_tint->texture.skinTone == RE::TESRace::FaceRelatedData::TintAsset::TintLayer::SkinTone::kSkinTone) {
-			
 			// This seems to make the skin tint correctly match the body tint
 			tint->interpolationValue = 100;
 			tint->tintColor.alpha = 255;
@@ -275,8 +285,6 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 
 		a_data->tintLayers->push_back(skin_tint);
 
-		
-		
 		logger::info("  NPC has no skin tone. Skin tone assigned to RGB:{}|{}|{}", skin_tint->tintColor.red, skin_tint->tintColor.green, skin_tint->tintColor.blue);
 	} else if (!skintone_tintasset) {
 		logger::info("  NPC has no skin tone. And Race: {} Sex: {} has no default skin tone.", utils::GetFormEditorID(a_data->race).c_str(), a_data->sex);
@@ -286,7 +294,7 @@ bool RaceSwap::DoTints(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_
 	return true;
 }
 
-RE::BGSHeadPart* RaceSwap::SwitchHeadPart(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data, RE::BGSHeadPart* a_part)
+RE::BGSHeadPart* SexSwap::SwitchHeadPart(raceutils::RandomGen rand_gen, NPCAppearance::NPCData* a_data, RE::BGSHeadPart* a_part)
 {
 	if (a_part == nullptr) {
 		return a_part;
@@ -307,7 +315,7 @@ RE::BGSHeadPart* RaceSwap::SwitchHeadPart(raceutils::RandomGen rand_gen, NPCAppe
 	if (new_item) {
 		return new_item;
 	} else {
-		logger::debug("New headpart is null, keeping original!");
-		return a_part;
+		logger::debug("New headpart is null, excluding!");
+		return nullptr;
 	}
 }

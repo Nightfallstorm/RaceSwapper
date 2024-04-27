@@ -13,7 +13,7 @@ public:
 	{
 		RE::TESNPC* baseNPC;          // 00
 		RE::TESModel* skeletonModel;  // 08
-		bool isFemale;                // 09
+		RE::SEX sex;                  // 09
 		////////////////// RACE DATA /////////////////////////////
 		bool isBeastRace;                               // 0A
 		RE::TESObjectARMO* skin;                        // 10

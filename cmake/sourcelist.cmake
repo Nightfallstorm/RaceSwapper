@@ -12,4 +12,5 @@ set(sources ${sources}
 	src/Utils.cpp
 	src/settings/Settings.cpp
 	src/MergeMapperPluginAPI.cpp
+	src/swap/SexSwap.cpp
 )

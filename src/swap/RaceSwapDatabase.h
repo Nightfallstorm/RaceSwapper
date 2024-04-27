@@ -501,15 +501,20 @@ namespace raceswap
 				} else if (sex == RE::SEX::kFemale) {
 					sexString = "FEMALE";
 				}
-				logger::info("	SEX: {}", sexString);
 				for (auto& [type, raceMap] : headpartMap) {
-					logger::info("		TYPE: {}", type);
 					for (auto& [race, headparts] : raceMap) {
-						logger::info("			RACE: {} {:x}", race->formEditorID, race->formID);
 						for (auto& headpart : headparts) {
-							logger::info("				HEADPART: {} {:x} HDPT: {} {} {}", 
-								headpart.first->formEditorID, headpart.first->formID,
-								std::get<0>(*headpart.second), std::get<1>(*headpart.second), std::get<2>(*headpart.second));
+							logger::info("SEX: {} TYPE: {} RACE: {} {:x} HEADPART: {} {:x} HDPT: {} {} {}",
+								sexString,
+								type,
+								race->formEditorID,
+								race->formID,
+								headpart.first->formEditorID,
+								headpart.first->formID,
+								std::get<0>(*headpart.second),
+								std::get<1>(*headpart.second),
+								std::get<2>(*headpart.second)
+							);
 						}
 					}
 				}
