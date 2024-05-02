@@ -296,6 +296,14 @@ bool ConfigurationEntry::MatchesNPC(RE::TESNPC* a_npc) {
 	isMatch = isMatch && (!entryData.otherRace || nonVampireRace->IsChildRace() == entryData.otherRace->IsChildRace());
 	isMatch = isMatch && (!entryData.otherNPC || nonVampireRace->IsChildRace() == entryData.otherNPC->race->IsChildRace());
 	
+	// Prevent matching if NPC would not be swapped at all (ie already male/female, already given race, already given NPC, etc>)
+	bool npcCanSwap = false;
+	npcCanSwap = npcCanSwap || (entryData.otherRace && entryData.otherRace != nonVampireRace);
+	npcCanSwap = npcCanSwap || (entryData.otherNPC && entryData.otherNPC != a_npc);
+	npcCanSwap = npcCanSwap || (entryData.otherSex != RE::SEX::kNone && entryData.otherSex != RE::SEX::kTotal && entryData.otherSex != a_npc->GetSex());
+
+	isMatch = isMatch && npcCanSwap;
+
 	if (isMatch) {
 		// TODO: Hash should include the entry itself to prevent all entries with the same weight
 		// matching the same exact NPCs
