@@ -26,6 +26,8 @@ namespace utils
 
 	std::string GetFormEditorID(const RE::TESForm* a_form);
 
+	bool IsRaceWerewolfOrVampire(RE::TESRace* a_race);
+
 	template <class T>
 	bool is_amongst(std::vector<T> item_list, T elem)
 	{

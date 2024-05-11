@@ -7,6 +7,11 @@ struct GetTESModelHook
 {
 	static RE::TESModel* GetTESModel(RE::TESNPC* a_npc)
 	{
+		if (utils::IsRaceWerewolfOrVampire(a_npc->GetRace())) {
+			// Ignore werewolve and vampire form
+			return OriginalModel(a_npc);
+		}
+
 		NPCAppearance* appearance = NPCAppearance::GetNPCAppearance(a_npc);
 		if (appearance != nullptr && appearance->isNPCSwapped) {
 			return appearance->alteredNPCData.skeletonModel;
@@ -56,6 +61,11 @@ struct GetBodyPartDataHook
 	{
 		// a_npc WAS the race, but we kept it as Actor for our purposes >:)
 		auto actor = reinterpret_cast<RE::Actor*>(a_actor);
+
+		if (utils::IsRaceWerewolfOrVampire(actor->GetRace())) {
+			// Ignore werewolve and vampire form
+			return func(actor->GetRace());
+		}
 		logger::debug("Getting body part data for {:x}", actor->formID);
 		auto appearance = NPCAppearance::GetNPCAppearance(actor->GetActorBase());
 		if (appearance && appearance->isNPCSwapped) {
@@ -63,13 +73,13 @@ struct GetBodyPartDataHook
 			return appearance->alteredNPCData.bodyPartData;
 		}
 
-		if (!actor->GetActorRuntimeData().race) {
+		if (!actor->GetRace()) {
 			logger::debug("Returning no body part data for {:x}", actor->formID);
 			return nullptr;
 		}
 
 		logger::debug("Returning default body part data for {:x}", actor->formID);
-		return func(actor->GetActorRuntimeData().race);
+		return func(actor->GetRace());
 	}
 
 	static inline REL::Relocation<decltype(thunk)> func;
@@ -105,12 +115,17 @@ struct GetBaseMoveTypes
 		// a_npc WAS the race, but we kept it as Actor for our purposes >:)
 		auto actor = reinterpret_cast<RE::Actor*>(a_actor);
 
+		if (utils::IsRaceWerewolfOrVampire(actor->GetRace())) {
+			// Ignore werewolve and vampire form
+			return func(actor->GetRace(), a_type);
+		}
+
 		auto appearance = NPCAppearance::GetNPCAppearance(actor->GetActorBase());
 		if (appearance && appearance->isNPCSwapped) {
 			return appearance->alteredNPCData.race->baseMoveTypes[a_type];
 		}
 
-		return func(actor->GetActorRuntimeData().race, a_type);
+		return func(actor->GetRace(), a_type);
 	}
 
 	static inline REL::Relocation<decltype(thunk)> func;
@@ -127,6 +142,11 @@ struct GetFaceRelatedDataHook
 {
 	static RE::TESRace::FaceRelatedData* GetFaceData(RE::TESNPC* a_npc)
 	{
+		if (utils::IsRaceWerewolfOrVampire(a_npc->race)) {
+			// Ignore werewolve and vampire form
+			return a_npc->race->faceRelatedData[a_npc->GetSex()];
+		}
+
 		NPCAppearance* appearance = NPCAppearance::GetNPCAppearance(a_npc);
 		if (appearance != nullptr && appearance->isNPCSwapped) {
 			return appearance->alteredNPCData.faceRelatedData;
@@ -162,6 +182,11 @@ struct GetFaceRelatedDataHook2
 {
 	static std::uint64_t thunk(std::uint64_t a_unk, std::uint64_t a_unk1, std::uint64_t a_unk2, RE::TESNPC* a_npc)
 	{
+		if (utils::IsRaceWerewolfOrVampire(a_npc->race)) {
+			// Ignore werewolve and vampire form
+			return func(a_unk, a_unk1, a_unk2, a_npc);
+		}
+
 		// Swap faceRelatedData for the duration of this function call
 		auto oldFaceRelatedData = a_npc->race->faceRelatedData[a_npc->GetSex()];
 
@@ -279,6 +304,10 @@ struct LoadTESObjectARMOHook
 	// We swap the race being passed to be what the NPC's new appearance is
 	static std::uint64_t thunk(RE::TESObjectARMO* a_armor, RE::TESRace* a_race, RE::BipedAnim** a_anim, bool isFemale)
 	{
+		if (utils::IsRaceWerewolfOrVampire(a_race)) {
+			// Ignore werewolve and vampire form
+			return func(a_armor, a_race, a_anim, isFemale);
+		}
 		auto race = a_race;
 		if (!a_anim || !(*a_anim)->actorRef.get().get() || !(*a_anim)->actorRef.get().get()->As<RE::Actor>()) {
 			return func(a_armor, race, a_anim, isFemale);
@@ -330,6 +359,12 @@ struct LoadSkinHook
 	// We also swap the armor skin to make sure it is correct
 	static std::uint64_t thunk(RE::TESObjectARMO* a_skin, RE::TESRace* a_race, RE::BipedAnim** a_anim, bool isFemale)
 	{
+		if (utils::IsRaceWerewolfOrVampire(a_race)) {
+			// Ignore werewolve and vampire form
+			logger::info("LoadSkin hook called for vampire/werewolf for skin {} {:x}", utils::GetFormEditorID(a_skin), a_skin->formID);
+			return func(a_skin, a_race, a_anim, isFemale);
+		}
+
 		auto race = a_race;
 		auto NPC = (*a_anim)->actorRef.get().get()->As<RE::Actor>()->GetActorBase();
 		auto skin = a_skin;
@@ -338,7 +373,7 @@ struct LoadSkinHook
 		if (appearance != nullptr && appearance->isNPCSwapped) {
 			// Swap to new appearance's race and skin
 			race = appearance->alteredNPCData.race;
-			skin = appearance->alteredNPCData.skin;
+			skin = appearance->alteredNPCData.skin ? appearance->alteredNPCData.skin : race->skin; // If original NPC skin null, fall back to race skin
 			logger::debug("LoadSkinHook: Swap occurred!");
 		}
 		logger::debug("LoadSkinHook: Loading {} {:x} for NPC {} {:x}",
@@ -380,15 +415,28 @@ struct SetRaceHook
 	// When actor's race is set, we will intercept and reapply appearances as if it was a brand new actor
 	static std::uint64_t thunk(RE::TESNPC* a_npc, RE::TESRace* a_newRace)
 	{
-		logger::info("SetRace called on {}{:x}, re-doing appearance on new race {}{:x}", 
+		logger::info("SetRace called on {} {:x}, re-doing appearance on new race {} {:x}", 
 			utils::GetFormEditorID(a_npc),
 			a_npc->formID,
 			utils::GetFormEditorID(a_newRace),
 			a_newRace->formID
 		);
+
+		if (utils::IsRaceWerewolfOrVampire(a_newRace)) {
+			// Ignore NPCs becoming werewolves/vampires
+			logger::info("Ignoring as new race is vampire/werewolf");
+			return func(a_npc, a_newRace);
+		}
+
+		if (utils::IsRaceWerewolfOrVampire(a_npc->GetRace())) {
+			// Ignore NPCs reverting from werewolves/vampires
+			logger::info("Ignoring as new race is reverting from vampire/werewolf");
+			return func(a_npc, a_newRace);
+		}
+
 		auto appearance = NPCAppearance::GetOrCreateNPCAppearance(a_npc);
 		if (appearance && appearance->isNPCSwapped) {
-			appearance->RevertNewAppearance();
+			appearance->RevertNewAppearance(false);
 		}
 		NPCAppearance::EraseNPCAppearance(a_npc);
 		auto result = func(a_npc, a_newRace);
@@ -481,6 +529,11 @@ struct PopulateGraphHook
 {
 	static std::uint64_t thunk(RE::Actor* a_actor, std::uint64_t a_unk1, std::uint64_t a_unk2)
 	{
+		if (utils::IsRaceWerewolfOrVampire(a_actor->GetRace())) {
+			// Ignore werewolve and vampire form
+			return func(a_actor, a_unk1, a_unk2);
+		}
+
 		auto appearance = NPCAppearance::GetNPCAppearance(a_actor->GetActorBase());
 		auto origRace = a_actor->GetActorRuntimeData().race;
 		if (appearance && appearance->isNPCSwapped) {
@@ -540,7 +593,12 @@ struct HeightHook
 {
 	static float thunk(RE::TESNPC* a_self)
 	{
-		auto race = a_self->race;
+		if (utils::IsRaceWerewolfOrVampire(a_self->GetRace())) {
+			// Ignore werewolve and vampire form
+			return OrigRaceLogic(a_self, a_self->GetRace());
+		}
+
+		auto race = a_self->GetRace();
 		auto appearance = NPCAppearance::GetNPCAppearance(a_self);
 		if (appearance && appearance->isNPCSwapped) {
 			race = appearance->alteredNPCData.race;

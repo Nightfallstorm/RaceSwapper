@@ -2,6 +2,8 @@
 #include "PCH.h"
 #include "settings/Settings.h"
 
+#undef GetObject
+
 namespace utils
 {
 	std::string UniqueStringFromForm(RE::TESForm* a_form_seed)
@@ -301,5 +303,17 @@ namespace utils
 	RE::TESRace* AsVampireRace(RE::TESRace* a_race)
 	{
 		return ConvertRace(a_race, true);
+	}
+
+	bool IsRaceWerewolfOrVampire(RE::TESRace* a_race) 
+	{
+		if (!a_race) {
+			return false;
+		}
+		RE::FormID werewolfRaceID = 0xCDD84;
+		RE::FormID vampireRaceID = RE::TESDataHandler().GetSingleton()->LookupFormID(0x283A, "Dawnguard.esm");
+		RE::TESRace* werewolfRace = RE::TESForm::LookupByID(werewolfRaceID)->As<RE::TESRace>();
+		RE::TESRace* vampireRace = RE::TESForm::LookupByID(vampireRaceID)->As<RE::TESRace>();
+		return a_race->formID == werewolfRace->formID || a_race->formID == vampireRace->formID;
 	}
 }

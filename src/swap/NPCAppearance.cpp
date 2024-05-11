@@ -23,7 +23,7 @@ static void UpdateLoadedActors(RE::TESNPC* a_npc) {
 
 bool NPCAppearance::ApplyNewAppearance(bool updateLoadedActors)
 {
-	if (isNPCSwapped) {
+	if (isNPCSwapped || isSwapDisabled) {
 		return false;
 	}
 
@@ -94,7 +94,7 @@ void NPCAppearance::InitializeNPCData(NPCData* a_data)
 	a_data->faceNPC = npc->faceNPC ? npc->faceNPC : npc;
 	a_data->race = npc->race;
 
-	a_data->skin = npc->skin ? npc->skin : npc->race->skin;
+	a_data->skin = npc->skin;
 	a_data->farSkin = npc->farSkin;
 
 	a_data->weight = npc->weight;

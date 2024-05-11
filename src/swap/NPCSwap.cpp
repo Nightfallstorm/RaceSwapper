@@ -26,7 +26,7 @@ void NPCSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESNPC* a_otherNPC) 
 	a_data->weight = a_otherNPC->weight;
 	a_data->sex = a_otherNPC->GetSex();
 	a_data->bodyTintColor = a_otherNPC->bodyTintColor;
-	a_data->skin = a_otherNPC->skin ? a_otherNPC->skin : a_otherNPC->race->skin;
+	a_data->skin = a_otherNPC->skin;
 	a_data->farSkin = a_otherNPC->farSkin;
 	a_data->race = a_otherNPC->race;
 	a_data->skeletonModel = &a_otherNPC->race->skeletonModels[a_otherNPC->GetSex()];

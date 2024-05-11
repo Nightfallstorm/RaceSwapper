@@ -51,6 +51,8 @@ public:
 
 	bool isNPCSwapped = false;
 
+	bool isSwapDisabled = false; 
+
 	bool ApplyNewAppearance(bool updateLoadedActors = false);
 
 	bool RevertNewAppearance(bool updateLoadedActors = false);

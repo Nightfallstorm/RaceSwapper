@@ -30,7 +30,6 @@ void RaceSwap::applySwap(NPCAppearance::NPCData* a_data, RE::TESRace* a_otherRac
 	a_data->faceNPC = nullptr; // Prevents cases where face NPC is configured differently
 	a_data->skeletonModel = &a_otherRace->skeletonModels[a_data->sex];
 	a_data->isBeastRace = a_otherRace->HasKeywordID(constants::Keyword_IsBeastRace);
-	a_data->skin = a_otherRace->skin;
 	a_data->faceRelatedData = a_otherRace->faceRelatedData[a_data->sex];
 	a_data->bodyPartData = a_otherRace->bodyPartData;
 	a_data->bodyTextureModel = &a_otherRace->bodyTextureModels[a_data->sex];
