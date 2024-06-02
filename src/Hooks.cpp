@@ -233,6 +233,10 @@ struct AttachTESObjectARMOHook
 				utils::GetFormEditorID(a_armor), a_armor->formID);
 			return;
 		}
+
+		// Preserve SOS slot
+		BipedObjectSlot ppSlot = a_armor->bipedModelData.bipedObjectSlots & RE::BGSBipedObjectForm::BipedObjectSlot::kModPelvisSecondary;
+
 		if (armorSlotMap.contains(a_armor)) {
 			a_armor->bipedModelData.bipedObjectSlots = armorSlotMap.at(a_armor);
 		} else {
@@ -241,6 +245,15 @@ struct AttachTESObjectARMOHook
 
 		auto origSlots = a_armor->bipedModelData.bipedObjectSlots;
 		a_armor->bipedModelData.bipedObjectSlots = GetCorrectBipedSlots(a_armor, race);
+
+		// Preserver SOS slot for TNG and similar mods
+		if (ppSlot == RE::BGSBipedObjectForm::BipedObjectSlot::kNone) {
+			// Remove SOS slot since it was never present
+			a_armor->bipedModelData.bipedObjectSlots.reset(RE::BGSBipedObjectForm::BipedObjectSlot::kModPelvisSecondary);
+		} else {
+			// Keep SOS slot since it was present before corrections
+			a_armor->bipedModelData.bipedObjectSlots.set(RE::BGSBipedObjectForm::BipedObjectSlot::kModPelvisSecondary);
+		}
 
 		logger::debug("Loading {:x} as race {} {:x} with new slots {:x}, old slots {:x}",
 			a_armor->formID,
