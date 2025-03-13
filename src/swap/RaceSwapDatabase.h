@@ -380,14 +380,14 @@ namespace raceswap
 		}
 
 		void parseHeadpart(RE::BGSHeadPart* a_headpart) {
-			auto _append_to_list_male = [a_headpart, this](RE::TESForm& form) {
-				valid_type_race_headpartdata_map[RE::SEX::kMale][a_headpart->type.get()][form.As<RE::TESRace>()].push_back(
+			auto _append_to_list_male = [a_headpart, this](RE::TESForm* form) {
+				valid_type_race_headpartdata_map[RE::SEX::kMale][a_headpart->type.get()][form->As<RE::TESRace>()].push_back(
 					{ a_headpart, FindOrCalculateHDPTData(a_headpart) }
 				);
 				return RE::BSContainer::ForEachResult::kContinue;
 			};
-			auto _append_to_list_female = [a_headpart, this](RE::TESForm& form) {
-				valid_type_race_headpartdata_map[RE::SEX::kFemale][a_headpart->type.get()][form.As<RE::TESRace>()].push_back(
+			auto _append_to_list_female = [a_headpart, this](RE::TESForm* form) {
+				valid_type_race_headpartdata_map[RE::SEX::kFemale][a_headpart->type.get()][form->As<RE::TESRace>()].push_back(
 					{ a_headpart, FindOrCalculateHDPTData(a_headpart) }
 				);
 				return RE::BSContainer::ForEachResult::kContinue;
