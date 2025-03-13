@@ -95,8 +95,9 @@ endif()
 
 # ---- Add source files ----
 
-include(cmake/headerlist.cmake)
-include(cmake/sourcelist.cmake)
+file(GLOB_RECURSE headers CONFIGURE_DEPENDS "src/**.h")
+
+file(GLOB_RECURSE sources CONFIGURE_DEPENDS "src/**.cpp")
 
 source_group(
 	TREE

@@ -69,8 +69,7 @@ extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
 	v.PluginVersion(Version::MAJOR);
 	v.PluginName("RaceSwapper");
 	v.AuthorName("Nightfallstorm and Hanotak");
-	v.UsesAddressLibrary(true);
-	v.HasNoStructUse(true);
+	v.UsesAddressLibrary();
 
 	return v;
 }();
