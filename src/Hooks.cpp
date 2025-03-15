@@ -1,6 +1,5 @@
 #pragma once
 #include "Hooks.h"
-#include "hooks/AttachTESObjectARMOHook.h"
 #include "hooks/CopyFromTemplateHook.h"
 #include "hooks/CopyNPCHook.h"
 #include "hooks/DtorNPCHook.h"
@@ -30,7 +29,6 @@ void hook::InstallHooks()
 	GetBodyPartDataHook::Install();
 	GetBaseMoveTypes::Install();
 	LoadTESObjectARMOHook::Install();
-	AttachTESObjectARMOHook::Install();
 	LoadSkinHook::Install();
 	PopulateGraphHook::Install();
 	IsBeastRaceHook::Install();
