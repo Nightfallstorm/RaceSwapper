@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 set(NAME "RaceSwapper")
-set(VERSION 1.5.1)
+set(VERSION 1.5.2)
 
 # ---- Cache build vars ----
 
