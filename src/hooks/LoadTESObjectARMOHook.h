@@ -47,7 +47,7 @@ struct LoadTESObjectARMOHook
 				utils::GetFormEditorID(a_race), a_race->formID,
 				utils::GetFormEditorID(a_armor), a_armor->formID);
 
-			if (isDAVActive()) {
+			if (isDAVOrDDNGActive()) {
 				return CallAttachToBipedDAV(a_armor, a_race, a_actor, a_anim, isFemale);
 			} else {
 				return;
@@ -82,7 +82,7 @@ struct LoadTESObjectARMOHook
 			a_armor->bipedModelData.bipedObjectSlots.underlying(),
 			origSlots.underlying());
 
-		if (isDAVActive()) {
+		if (isDAVOrDDNGActive()) {
 			CallAttachToBipedDAV(a_armor, race, a_actor, a_anim, isFemale);
 		} else {
 			for (auto addon : a_armor->armorAddons) {
@@ -140,15 +140,16 @@ struct LoadTESObjectARMOHook
 
 	static inline std::map<RE::TESObjectARMO*, BipedObjectSlot> armorSlotMap;
 
-	static const inline bool isDAVActive() {
+	static const inline bool isDAVOrDDNGActive() {
 		static auto DAVHandle = GetModuleHandleA("DynamicArmorVariants");
-		return DAVHandle != nullptr;
+		static auto DDNGHandle = GetModuleHandleA("DeviousDevices");
+		return DAVHandle != nullptr || DDNGHandle != nullptr;
 	}
 
 	// Install our hook at the specified address
 	static inline void Install()
 	{
-		if (!isDAVActive()) {
+		if (!isDAVOrDDNGActive()) {
 			addToBiped = { RELOCATION_ID(17361, 17759) };
 
 			REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(24232, 24736), REL::VariantOffset(0x302, 0x302, 0x302) };
@@ -157,7 +158,7 @@ struct LoadTESObjectARMOHook
 			logger::info("LoadTESObjectARMOHook hooked at address {:x}", target.address());
 			logger::info("LoadTESObjectARMOHook hooked at offset {:x}", target.offset());
 		} else {
-			InstallForDAV();	
+			InstallForDAVAndDDNG();	
 		}
 
 		REL::Relocation<std::uintptr_t> target2{ RELOCATION_ID(24233, 24737), REL::VariantOffset(0x78, 0x78, 0x78) };
@@ -174,8 +175,8 @@ struct LoadTESObjectARMOHook
 		logger::info("LoadTESObjectARMOHook hooked at offset {:x}", target3.offset());
 	}
 
-	static inline void InstallForDAV() {
-		logger::info("LoadTESObjectARMOHook installing compatibility hook for DAV");
+	static inline void InstallForDAVAndDDNG() {
+		logger::info("LoadTESObjectARMOHook installing compatibility hook for DAV and/or DDNG");
 		byte originalBytes[] = { 
 			(byte)0x44, (byte)0x8B, (byte)0x49, (byte)0x38, (byte)0x41, (byte)0x83, (byte)0xE1, (byte)0x01, (byte)0x48,
 			(byte)0x8B, (byte)0x91, (byte)0x58, (byte)0x01, (byte)0x00, (byte)0x00, (byte)0x48, (byte)0x8B, (byte)0xCD, (byte)0xE8, (byte)0x79,
