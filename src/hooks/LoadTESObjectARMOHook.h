@@ -119,10 +119,15 @@ struct LoadTESObjectARMOHook
 	static void CallAttachToBipedDAV(RE::TESObjectARMO* a_armor, RE::TESRace* a_appearanceRace, RE::Actor* a_actor, RE::BipedAnim** a_anim, bool isFemale) {
 		auto originalRace = a_actor->GetRace();
 		a_actor->GetActorRuntimeData().race = a_appearanceRace;
+		
+		auto originalAppearanceArmorRace = a_appearanceRace->armorParentRace;
+		a_appearanceRace->armorParentRace = nullptr;
 
 		AttachToBipedDAV(a_armor, a_actor, a_anim, isFemale);
 
 		a_actor->GetActorRuntimeData().race = originalRace;
+		
+		a_appearanceRace->armorParentRace = originalAppearanceArmorRace;
 	}
 
 	static void AttachToBipedDAV(RE::TESObjectARMO* a_armor, RE::Actor* a_actor, RE::BipedAnim** a_anim, bool isFemale)
