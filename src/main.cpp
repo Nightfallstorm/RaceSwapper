@@ -22,7 +22,6 @@ void MessageInterface(SKSE::MessagingInterface::Message* msg) {
 			} else
 				logger::info("MergeMapper not detected");
 			logger::info("Dependencies check complete!");
-			Settings::GetSingleton()->Load();
 			break;
 		}
 		case SKSE::MessagingInterface::kDataLoaded:
@@ -53,14 +52,21 @@ void InitializeLog()
 	log->set_level(spdlog::level::debug);
 	log->flush_on(spdlog::level::debug);
 #else
-	log->set_level(spdlog::level::info);
-	log->flush_on(spdlog::level::info);
+	auto isDebugLoggingEnabled = Settings::GetSingleton()->features.any(Settings::Features::kDebugLogging);
+	if (isDebugLoggingEnabled)
+	{
+		log->set_level(spdlog::level::debug);
+		log->flush_on(spdlog::level::debug);
+	} else {
+		log->set_level(spdlog::level::info);
+		log->flush_on(spdlog::level::info);
+	}
+
 #endif
 	
 
 	spdlog::set_default_logger(std::move(log));
-	spdlog::set_pattern("[%H:%M:%S:%e] %v"s);
-
+	spdlog::set_pattern("[%T.%e] [%=5t] [%L] %v");
 	logger::info(FMT_STRING("{} v{}"), Version::PROJECT, Version::NAME);
 }
 
@@ -86,8 +92,9 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a
 
 extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_skse)
 {
-	InitializeLog();
 	SKSE::Init(a_skse);
+	Settings::GetSingleton()->Load();
+	InitializeLog();
 	auto messaging = SKSE::GetMessagingInterface();
 	messaging->RegisterListener(MessageInterface);
 	auto papyrusInterface = SKSE::GetPapyrusInterface();

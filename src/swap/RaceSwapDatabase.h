@@ -482,18 +482,19 @@ namespace raceswap
 		}
 
 		void dump() {
-#ifndef _DEBUG
-			return;
-#endif
-			logger::info("Dumping strict headpart map");
+			if (!Settings::GetSingleton()->features.any(Settings::Features::kDebugLogging)) {
+				return;
+			}
+
+			logger::debug("Dumping strict headpart map");
 			for (auto& [race, headparts] : strict_headpart_map) {
-				logger::info("	Headparts for {} {:x}", race->formEditorID, race->formID);
+				logger::debug("	Headparts for {} {:x}", race->formEditorID, race->formID);
 				for (auto headpart: headparts) {
-					logger::info("		{} {:x}", headpart->formEditorID, headpart->formID);
+					logger::debug("		{} {:x}", headpart->formEditorID, headpart->formID);
 				}
 			}
 
-			logger::info("Dumping valid headpart map");
+			logger::debug("Dumping valid headpart map");
 			for (auto& [sex, headpartMap] : valid_type_race_headpartdata_map) {
 				auto sexString = "N/A";
 				if (sex == RE::SEX::kMale) {
@@ -504,7 +505,7 @@ namespace raceswap
 				for (auto& [type, raceMap] : headpartMap) {
 					for (auto& [race, headparts] : raceMap) {
 						for (auto& headpart : headparts) {
-							logger::info("SEX: {} TYPE: {} RACE: {} {:x} HEADPART: {} {:x} HDPT: {} {} {}",
+							logger::debug("SEX: {} TYPE: {} RACE: {} {:x} HEADPART: {} {:x} HDPT: {} {} {}",
 								sexString,
 								type,
 								race->formEditorID,
