@@ -286,13 +286,8 @@ namespace utils
 			return map[a_race];
 		}		
 
-		// Fallback, return nord vampire race (this is what RaceCompatibility does as well)
-		if (toVampire) {
-			return RE::TESForm::LookupByID(0x88794)->As<RE::TESRace>(); // Nord Vampire
-		} else {
-			return RE::TESForm::LookupByID(0x13746)->As<RE::TESRace>(); // Nord
-		}
-		
+		// Fallback, return original race
+		return a_race;		
 	}
 
 	RE::TESRace* AsNonVampireRace(RE::TESRace* a_race)
