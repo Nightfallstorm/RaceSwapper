@@ -21,6 +21,36 @@ namespace raceutils
 			}
 		}
 
+		// Some headparts aren't named correctly. Use headpart type to guarantee correct assignment on important pieces
+		using Type = RE::HeadPartType;
+		using HDPTType = raceswap::DataBase::HDPTType;
+		switch ((RE::HeadPartType)hdpt->type.underlying()) {
+		case Type::kEyes:
+			{
+				types |= HDPTType::Eyes;
+				break;
+			}
+		case Type::kFacialHair:
+			{
+				types |= HDPTType::Beard;
+				break;
+			}
+		case Type::kHair:
+			{
+				types |= HDPTType::Hair;
+				break;
+			}
+		case Type::kEyebrows:
+			{
+				types |= HDPTType::Brow;
+				break;
+			}
+		case Type::kScar:
+			{
+				types |= HDPTType::Scar;
+			}
+		}
+
 		for (auto& [charString, characteristic] : raceswap::DataBase::HDPTCharMap) {
 			if (str.find(charString) != std::string::npos) {
 				characteristics |= characteristic;
