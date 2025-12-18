@@ -12,7 +12,7 @@ namespace raceutils
 		std::string str(utils::GetFormEditorID(hdpt));
 
 		if (str == "") {
-			logger::info("{:x} has no editor ID!");
+			logger::info("{:x} has no editor ID!", hdpt->formID);
 		}
 		
 		for (auto& [typeString, type] : raceswap::DataBase::HDPTTypeMap) {
@@ -104,7 +104,7 @@ namespace raceutils
 		std::string str(utils::GetFormEditorID(hdpt));
 
 		if (str == "") {
-			logger::info("{:x} has no editor ID!");
+			logger::info("{:x} has no editor ID!", hdpt->formID);
 		}
 
 		for (auto& [charString, characteristic] : raceswap::DataBase::SkinCharMap) {
