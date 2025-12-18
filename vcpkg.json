@@ -1,6 +1,6 @@
 {
   "name": "raceswapper",
-  "version-string": "1.5.7",
+  "version-string": "1.5.8",
   "description": "Framework to dynamically swap appearances of NPCs at runtime",
   "homepage": "https://github.com/Nightfallstorm/RaceSwapper",
   "license": "GPL-3.0",
